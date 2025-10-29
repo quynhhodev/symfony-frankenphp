@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    image: devho/franken-php:0.0.1
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+      - target: 443
+        published: 443
+        protocol: tcp
+    volumes:
+      - ./:/app/public
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+    caddy_data:
+    caddy_config:

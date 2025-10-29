@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frankenphp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frankenphp
+  template:
+    metadata:
+      labels:
+        app: frankenphp
+    spec:
+      containers:
+      - name: frankenphp
+        image: devho/franken-php:0.0.1
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+      imagePullSecrets:
+      - name: regsecret
+
+
+
