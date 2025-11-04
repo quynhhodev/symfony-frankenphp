@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:0.0.1
+        image: devho/franken-php:0.0.3
         resources:
           limits:
             memory: "128Mi"
