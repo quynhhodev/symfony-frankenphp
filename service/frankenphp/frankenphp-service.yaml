@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frankenphp
+spec:
+  selector:
+    app: frankenphp
+  ports:
+  - name: http
+    protocol: TCP
+    port: 443
+    targetPort: 443
+  type: ClusterIP
+    

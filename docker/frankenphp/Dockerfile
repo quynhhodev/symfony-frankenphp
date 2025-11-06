@@ -9,14 +9,14 @@ COPY . .
 # CMD ["pwd"]
 # COPY . /app/public/
 
-# RUN install-php-extensions \
-#     pdo_mysql \
-#     gd \
-#     intl \
-#     zip \
-#     opcache
+RUN install-php-extensions \
+    pdo_mysql \
+    gd \
+    intl \
+    zip \
+    opcache
 
-# RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader
 
 
 
