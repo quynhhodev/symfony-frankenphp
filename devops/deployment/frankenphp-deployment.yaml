@@ -15,6 +15,9 @@ spec:
       containers:
       - name: frankenphp
         image: devho/franken-php:0.0.5
+        envFrom:
+          - configMapRef:
+              name: frankenphp
         resources:
           limits:
             memory: "128Mi"
@@ -22,6 +25,7 @@ spec:
         ports:
         - containerPort: 80
         - containerPort: 443
+        
       imagePullSecrets:
       - name: regsecret
 
