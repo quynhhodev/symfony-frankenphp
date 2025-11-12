@@ -13,7 +13,7 @@ services:
         published: 443
         protocol: tcp
     volumes:
-      # - ./:/app/public
+      - ./:/app/public
       - caddy_data:/data
       - caddy_config:/config
 

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:0.0.5
+        image: devho/franken-php:0.0.10
         envFrom:
           - configMapRef:
               name: frankenphp

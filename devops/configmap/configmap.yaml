@@ -4,3 +4,4 @@ metadata:
   name: frankenphp
 data:
   APP_RUNTIME_ENV: 'prod'
+  APP_ENV: 'dev'
