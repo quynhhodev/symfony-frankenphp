@@ -25,6 +25,8 @@ COPY --chown=docker:docker composer.* symfony.* ./
 
 RUN install-php-extensions \
     pdo_mysql \
+    pdo \
+    pdo_pgsql \
     gd \
     intl \
     zip \

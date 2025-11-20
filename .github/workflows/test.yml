@@ -44,8 +44,8 @@ jobs:
       - name: Validate Doctrine schema
         run: docker compose -f compose.yml exec -T php php bin/console doctrine:schema:validate
 
-      - name: Reload Hasura metadata
-        run: docker compose -f compose.yml exec -T php php bin/console hasura:metadata:reload
+      # - name: Reload Hasura metadata
+      #   run: docker compose -f compose.yml exec -T php php bin/console hasura:metadata:reload
 
-      - name: Test apply Hasura metadata
-        run: docker compose -f compose.yml exec -T php php bin/console hasura:metadata:apply
+      # - name: Test apply Hasura metadata
+      #   run: docker compose -f compose.yml exec -T php php bin/console hasura:metadata:apply

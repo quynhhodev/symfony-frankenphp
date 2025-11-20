@@ -7,15 +7,17 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+
 final class SentMessageController extends AbstractController
 {
+    public function __construct(
+        public HttpClientInterface $whatsappClient
+    ) {}
+
+
+
     #[Route('/sent/message', name: 'app_sent_message')]
-
-    // public function __construct(private readonly HttpClientInterface $req){
-
-    // }
-
-    public function index(HttpClientInterface $req): JsonResponse
+    public function index(): JsonResponse
     {
         $data = [
             'messaging_product' => 'whatsapp',
@@ -28,7 +30,8 @@ final class SentMessageController extends AbstractController
                 ]
             ]
                 ];
-        $res = $req->request(
+
+        $res = $this->whatsappClient->request(
             'POST',
             'https://graph.facebook.com/v22.0/794938290379865/messages',
             [

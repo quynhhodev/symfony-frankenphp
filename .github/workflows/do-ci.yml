@@ -18,11 +18,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/bake-action@v4
+
+      - uses: docker/build-push-action@v6
         with:
-          files: docker-compose.yml
+          context: .
+          file: docker/frankenphp/Dockerfile
           push: true
-          targets: apache
-          set: |
-            *.tags=devho/franken-php:latest
-            *.tags=devho/franken-php:${{ github.sha }}
+          tags: devho/franken-php:latest

@@ -1,0 +1,8 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+  http_client:
+    scoped_clients:
+      whatsappClient:
+        base_uri: '%env(FACEBOOK_URI)%'
+        headers:
+          Authorization: '%env(FACEBOOK_ACCESS_TOKEN)%'
