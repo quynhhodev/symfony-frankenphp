@@ -37,7 +37,7 @@ final class SentMessageController extends AbstractController
         );
 
         return $this->json([
-            'message' => 'Welcome to your new controller!',
+            'message' => 'abc!',
             'path' => 'src/Controller/SentMessageController.php',
         ]);
     }
