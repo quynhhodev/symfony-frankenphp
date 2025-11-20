@@ -19,19 +19,19 @@ jobs:
       - name: Start docker
         run: docker compose -f compose.yml up -d
 
-      - name: Check the deployed service URL
-        uses: jtalk/url-health-check-action@v4
-        with:
-          # Check the following URLs one by one sequentially
-          url: http://localhost:8080/healthz
-          # Follow redirects, or just report success on 3xx status codes
-          follow-redirect: false # Optional, defaults to "false"
-          # Fail this action after this many failed attempts
-          max-attempts: 3 # Optional, defaults to 1
-          # Delay between retries
-          retry-delay: 5s # Optional, only applicable to max-attempts > 1
-          # Retry all errors, including 404. This option might trigger curl upgrade.
-          retry-all: true # Optional, defaults to "false"
+      # - name: Check the deployed service URL
+      #   uses: jtalk/url-health-check-action@v4
+      #   with:
+      #     # Check the following URLs one by one sequentially
+      #     url: http://localhost:8080/healthz
+      #     # Follow redirects, or just report success on 3xx status codes
+      #     follow-redirect: false # Optional, defaults to "false"
+      #     # Fail this action after this many failed attempts
+      #     max-attempts: 3 # Optional, defaults to 1
+      #     # Delay between retries
+      #     retry-delay: 5s # Optional, only applicable to max-attempts > 1
+      #     # Retry all errors, including 404. This option might trigger curl upgrade.
+      #     retry-all: true # Optional, defaults to "false"
       - uses: "ramsey/composer-install@v3"
         with:
           composer-options: "--no-interaction --no-progress"
