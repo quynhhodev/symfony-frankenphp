@@ -25,5 +25,5 @@ jobs:
           file: docker/frankenphp/Dockerfile
           push: true
           tags: | 
-             ${{ secrets.DOCKERHUB_USERNAME }}/franken-php:${ github.sha.substring(0,7) }
+             ${{ secrets.DOCKERHUB_USERNAME }}/franken-php:${ github.sha }
           # tags: devho/franken-php:latest
