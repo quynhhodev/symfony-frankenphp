@@ -12,7 +12,7 @@ final class EnvDataController extends AbstractController
     public function index(): JsonResponse
     {
         $a  = 0;
-        while($a < 999999999){
+        while($a < 10000000){
             $a += 1;
         }
         
