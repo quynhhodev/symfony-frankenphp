@@ -46,5 +46,5 @@ jobs:
           file: docker/frankenphp/Dockerfile
           push: true
           tags: | 
-            ${{ env.repository }}/franken-php:${{ github.sha }}
+            ${{ env.repository }}:${{ github.sha }}
           # tags: devho/franken-php:latest
