@@ -15,7 +15,7 @@ jobs:
       - name: echo github.ref
         run: echo ${{github.ref}}
       - run: echo "🍏 This job's status is ${{ job.status }}."
-    
+
       - name: Start docker
         run: docker compose -f compose.yml up -d
 
@@ -32,6 +32,9 @@ jobs:
       #     retry-delay: 5s # Optional, only applicable to max-attempts > 1
       #     # Retry all errors, including 404. This option might trigger curl upgrade.
       #     retry-all: true # Optional, defaults to "false"
+      - uses: "shivammathur/setup-php@v2"
+        with:
+          php-version: "latest"
       - uses: "ramsey/composer-install@v3"
         with:
           composer-options: "--no-interaction --no-progress"
