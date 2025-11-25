@@ -42,10 +42,10 @@ jobs:
       #   run: docker compose -f compose.yml run --rm php composer install --no-interaction --no-progress
 
       - name: Test migration
-        run: docker compose -f compose.yml exec -T php php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+        run: docker compose -f compose.yml exec -T apache php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
       - name: Validate Doctrine schema
-        run: docker compose -f compose.yml exec -T php php bin/console doctrine:schema:validate
+        run: docker compose -f compose.yml exec -T apache php bin/console doctrine:schema:validate
 
       # - name: Reload Hasura metadata
       #   run: docker compose -f compose.yml exec -T php php bin/console hasura:metadata:reload
