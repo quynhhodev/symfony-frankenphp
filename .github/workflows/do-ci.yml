@@ -47,4 +47,5 @@ jobs:
           push: true
           tags: | 
             ${{ env.repository }}:${{ github.sha }}
+            ${{ env.repository }}:latest
           # tags: devho/franken-php:latest
