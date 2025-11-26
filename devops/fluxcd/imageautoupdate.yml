@@ -13,8 +13,9 @@ spec:
       ref:
         branch: main
     commit:
-      authorName: fluxcd
-      authorEmail: fluxcdbot@users.noreply.github.com
+      author:
+        name: fluxcd
+        email:  fluxcdbot@users.noreply.github.com
     push:
       branch: main
   update:
