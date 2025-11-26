@@ -8,5 +8,14 @@ spec:
   sourceRef:
     kind: GitRepository
     name: symfony-frankenphp
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      authorName: fluxcd
+      authorEmail: fluxcdbot@users.noreply.github.com
+    push:
+      branch: main
   update:
     strategy: Setters
