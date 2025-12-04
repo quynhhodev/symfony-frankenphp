@@ -12,9 +12,9 @@ jobs:
       - name: List files in the repository
         run: |
           ls ${{ github.workspace }}
+
       - name: echo github.ref
         run: echo ${{github.ref}}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
 
       - name: Start docker
         run: docker compose -f compose.yml up -d
