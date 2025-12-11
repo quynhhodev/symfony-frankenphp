@@ -3,12 +3,17 @@ kind: Service
 metadata:
   name: frankenphp
 spec:
+  type: ClusterIP
   selector:
     app: frankenphp
   ports:
+  # - name: https
+  #   protocol: TCP
+  #   port: 443
+  #   targetPort: 443
   - name: http
     protocol: TCP
-    port: 443
-    targetPort: 443
-  type: ClusterIP
+    port: 80
+    targetPort: 80
+    
     

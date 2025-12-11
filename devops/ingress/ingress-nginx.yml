@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myingress
+  labels:
+    app.kubernetes.io/name: myingress
+spec:
+  rules:
+  - host: 10.110.53.88.nip.io
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: frankenphp
+            port: 
+              number: 80

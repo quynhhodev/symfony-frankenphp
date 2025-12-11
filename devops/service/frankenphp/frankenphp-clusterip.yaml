@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service  # Tên của Service
+  labels:
+    env: dev
+spec:
+  type: ClusterIP        # (Tùy chọn) Đây là mặc định, nhưng nên ghi rõ
+  selector:              # Quan trọng: Dùng để tìm các Pods tương ứng
+    app: frankenphp     # Phải khớp với label của Pod/Deployment
+  ports:
+    - protocol: TCP
+      port: 443         # Port của Service (các app khác trong cluster sẽ gọi vào port này)
+      targetPort: 443
