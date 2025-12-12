@@ -9,9 +9,8 @@ services:
       - target: 80
         published: 80
         protocol: tcp
-      - target: 443
-        published: 443
-        protocol: tcp
+    environment:
+      SERVER_NAME: :80
     volumes:
       - ./:/app/public
       - caddy_data:/data
