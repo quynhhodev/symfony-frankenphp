@@ -22,6 +22,7 @@ COPY --chown=docker:docker composer.* symfony.* ./
 
 # CMD ["pwd"]
 # COPY . /app/public/
+EXPOSE 80
 
 RUN install-php-extensions \
     pdo_mysql \

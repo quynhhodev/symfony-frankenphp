@@ -2,17 +2,19 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: myingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
   labels:
     app.kubernetes.io/name: myingress
 spec:
   rules:
-  - host: 10.110.53.88.nip.io
+  - host: my-web.local
     http:
       paths:
       - pathType: Prefix
         path: "/"
         backend:
           service:
-            name: frankenphp
+            name: backend-service
             port: 
               number: 80
