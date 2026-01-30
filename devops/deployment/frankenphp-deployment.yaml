@@ -14,7 +14,10 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:latest # {"$imagepolicy": "default:frankenphp-policy"}
+        image: devho/franken-php:d8e10cd4e5ac0e7b6169bc658939dbfb8695dc8a # {"$imagepolicy": "default:frankenphp-policy"}
+        # environment:
+        #   - name: SERVER_NAME
+        #     value: "my-web.local"
         envFrom:
           - configMapRef:
               name: frankenphp
@@ -25,9 +28,17 @@ spec:
         ports:
         - containerPort: 80
         # - containerPort: 443
+      volumes:
+      - name: frankenphp-volume
+        # persistentVolumeClaim:
+        #   claimName: frankenphp-pvc
+
+
+
         
       imagePullSecrets:
       - name: regsecret
+      # imagePullPolicy: Always
 
 
 

@@ -3,12 +3,12 @@ kind: Job
 metadata:
   name: composer
 spec:
-  ttlSecondsAfterFinished: 100
   template:
     spec:
       containers:
-      - name: pi
-        image: perl
-        command: ["perl",  "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      - name: composer
+        image: composer/composer:2.2.26
+        command: ["composer",  "install", "--no-dev", "--optimize-autoloader"]
+      
       restartPolicy: Never
 

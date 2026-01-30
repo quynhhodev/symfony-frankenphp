@@ -3,7 +3,23 @@ FROM dunglas/frankenphp
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app/public
+COPY --chown=docker:docker composer.* symfony.* ./ ./
 
+
+RUN install-php-extensions \
+    pdo_mysql \
+    pdo \
+    pdo_pgsql \
+    gd \
+    intl \
+    zip \
+    opcache
+
+RUN composer install \
+    --no-interaction \
+    --no-scripts \
+    --no-progress \
+    && composer clear-cache;
 
 # Copy dependencies
 COPY --chown=docker:docker .env ./
@@ -24,17 +40,6 @@ COPY --chown=docker:docker composer.* symfony.* ./
 # COPY . /app/public/
 EXPOSE 80
 
-RUN install-php-extensions \
-    pdo_mysql \
-    pdo \
-    pdo_pgsql \
-    gd \
-    intl \
-    zip \
-    opcache
-
-RUN composer install --optimize-autoloader --no-interaction --no-scripts --no-progress --no-dev; \
-    composer clear-cache;
 
 
 
