@@ -35,7 +35,7 @@ COPY --chown=docker:docker src src/
 # COPY --chown=docker:docker resources resources/
 COPY --chown=docker:docker composer.* symfony.* ./
 
-
+ENV SERVER_NAME=':80'
 # CMD ["pwd"]
 # COPY . /app/public/
 EXPOSE 80
