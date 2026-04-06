@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce # Chỉ cho phép 1 Node ghi vào ổ đĩa này tại 1 thời điểm
+  resources:
+    requests:
+      storage: 1Gi # Dung lượng ổ đĩa bạn muốn (ví dụ 1GB)

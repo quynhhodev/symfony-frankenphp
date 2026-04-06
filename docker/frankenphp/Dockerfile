@@ -13,7 +13,8 @@ RUN install-php-extensions \
     gd \
     intl \
     zip \
-    opcache
+    opcache \
+    amqp
 
 RUN composer install \
     --no-interaction \

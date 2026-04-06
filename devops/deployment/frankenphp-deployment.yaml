@@ -14,10 +14,18 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:d8e10cd4e5ac0e7b6169bc658939dbfb8695dc8a # {"$imagepolicy": "default:frankenphp-policy"}
-        # environment:
-        #   - name: SERVER_NAME
-        #     value: "my-web.local"
+        image: devho/franken-php:0ef7be7c35f8900e1f81047317564d9fee08ead9 # {"$imagepolicy": "default:frankenphp-policy"}
+        env:
+          - name: DB_HOST
+            value: "postgres-service" # Tên Service của Postgres
+          - name: DB_PORT
+            value: "5432"
+          - name: DATABASE_URL
+            value: "postgresql://postgres:mysecretpassword@postgres-service:5432/myapp_db?serverVersion=15&charset=utf8"
+          - name: DB_USER
+            value: "postgres"
+          - name: DB_PASSWORD
+            value: "mysecretpassword" # Trong thực tế nên dùng K8s Secrets
         envFrom:
           - configMapRef:
               name: frankenphp
@@ -27,18 +35,10 @@ spec:
             cpu: "500m"
         ports:
         - containerPort: 80
-        # - containerPort: 443
       volumes:
       - name: frankenphp-volume
-        # persistentVolumeClaim:
-        #   claimName: frankenphp-pvc
-
-
-
-        
       imagePullSecrets:
       - name: regsecret
-      # imagePullPolicy: Always
 
 
 

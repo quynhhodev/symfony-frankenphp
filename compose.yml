@@ -34,6 +34,19 @@ services:
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql/data:rw
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+      - target: 5672
+        published: 5672
+        protocol: tcp
+      - target: 15672
+        published: 15672
+        protocol: tcp
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-quynh}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-quynh121201}
+      # RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS: true
 
 volumes:
     caddy_data:
