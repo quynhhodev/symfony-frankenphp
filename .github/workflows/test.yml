@@ -35,6 +35,7 @@ jobs:
       - uses: "shivammathur/setup-php@v2"
         with:
           php-version: "latest"
+          extensions: amqp
       - uses: "ramsey/composer-install@v3"
         with:
           composer-options: "--no-interaction --no-progress"
