@@ -6,3 +6,4 @@ data:
   APP_RUNTIME_ENV: 'prod'
   APP_ENV: 'dev'
   SERVER_NAME: ':80'
+  DB: 'myapp_db'

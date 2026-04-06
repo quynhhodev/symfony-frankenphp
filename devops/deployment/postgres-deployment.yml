@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: postgres
 spec:
+  replicas: 1 # Database thường chạy 1 bản để tránh xung đột dữ liệu (trừ khi dùng Cluster chuyên dụng)
   selector:
     matchLabels:
       app: postgres
@@ -12,18 +13,32 @@ spec:
         app: postgres
     spec:
       containers:
-      - name: postgres
-        image: postgres:15
-        ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_USER
-          valueFrom: 
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom: 
-            secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_PASSWORD
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: frankenphp
+                  key: DB
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data # Thư mục mặc định Postgres lưu data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc # Phải trùng tên với PVC ở Bước 1
