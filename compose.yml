@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   apache:
     build:
@@ -34,6 +32,22 @@ services:
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql/data:rw
+  hasura:
+    image: hasura/graphql-engine:v2.42.0
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-quynh121201}@database:5432/${POSTGRES_DB:-app}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-mysecretkey}
+    restart: unless-stopped
+
   rabbitmq:
     image: rabbitmq:management
     ports:

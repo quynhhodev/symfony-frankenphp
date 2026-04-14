@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:0ef7be7c35f8900e1f81047317564d9fee08ead9 # {"$imagepolicy": "default:frankenphp-policy"}
+        image: devho/franken-php:latest
         env:
           - name: DB_HOST
             value: "postgres-service" # Tên Service của Postgres
