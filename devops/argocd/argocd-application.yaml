@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frankenphp
+  namespace: argocd
+  annotations:
+    # ArgoCD Image Updater: tự động phát hiện image mới trên DockerHub
+    # Theo dõi digest của tag 'latest' - khi CI push image mới lên Docker Hub
+    # Image Updater sẽ commit tag mới vào Git, ArgoCD tự sync deployment
+    argocd-image-updater.argoproj.io/image-list: frankenphp=devho/franken-php:latest
+    argocd-image-updater.argoproj.io/frankenphp.update-strategy: digest
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-git-creds
+    argocd-image-updater.argoproj.io/git-branch: main
+    argocd-image-updater.argoproj.io/frankenphp.force-update: "false"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/quynhhodev/symfony-frankenphp.git
+    targetRevision: main
+    path: devops
+    directory:
+      # Loại trừ thư mục argocd (bootstrap files) và fluxcd (đã thay thế)
+      exclude: '{argocd/**,fluxcd/**}'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true      # Xóa resource không còn trong Git
+      selfHeal: true   # Tự phục hồi nếu cluster bị drift
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
