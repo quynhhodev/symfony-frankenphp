@@ -22,7 +22,7 @@ final class BMessageHandler
         $this->logger->info('Handling AMessage in BMessageHandler', ['message' => $message]);
         $user = new User();
         $user->setName('John Doe');
-        $user->setAge(30);
+        $user->setAge(31);
         $user->setRecidentId(123457);
         $this->userRepository->save($user);
     }
