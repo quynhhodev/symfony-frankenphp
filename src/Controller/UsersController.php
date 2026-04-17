@@ -15,15 +15,13 @@ final class UsersController extends AbstractController
 {
     public function __construct(
         private UserRepository $userRepo
-    )
-    {
-        throw new \Exception('Not implemented');
-    }
+    ) {}
+
     #[Route('/users', name: 'app_env_data')]
     public function index(MessageBusInterface $bus, EntityManagerInterface $em): JsonResponse
     {
         $users = $this->userRepo->findAll();
 
-        return new JsonResponse(['data' => $a, 'users' => $users], 200);
+        return new JsonResponse(['users' => $users], 200);
     }
 }
