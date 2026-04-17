@@ -1,14 +1,41 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: composer
+  name: composer-install
+  annotations:
+    # Chạy trước khi ArgoCD sync deployment
+    argocd.argoproj.io/hook: PreSync
+    # Xóa job cũ trước khi tạo job mới (tránh conflict)
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   template:
     spec:
+      initContainers:
+        # Copy source code từ app image ra shared volume
+        - name: copy-source
+          image: devho/franken-php:latest
+          command: ["/bin/sh", "-c", "cp -r /app/. /workspace/"]
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+          imagePullPolicy: Always
       containers:
-      - name: composer
-        image: composer/composer:2.2.26
-        command: ["composer",  "install", "--no-dev", "--optimize-autoloader"]
-      
+        - name: composer
+          image: composer/composer:2.8
+          command:
+            - composer
+            - install
+            - --no-dev
+            - --optimize-autoloader
+            - --no-interaction
+          workingDir: /workspace
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
       restartPolicy: Never
-
+      imagePullSecrets:
+        - name: regsecret
+      volumes:
+        - name: workspace
+          emptyDir: {}
+  backoffLimit: 2
