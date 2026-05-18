@@ -7,7 +7,7 @@ metadata:
     # ArgoCD Image Updater: tự động phát hiện image mới trên DockerHub
     # Theo dõi digest của tag 'latest' - khi CI push image mới lên Docker Hub
     # Image Updater sẽ commit tag mới vào Git, ArgoCD tự sync deployment
-    argocd-image-updater.argoproj.io/image-list: frankenphp=devho/franken-php:latest
+    argocd-image-updater.argoproj.io/image-list: frankenphp=docker.io/devho/franken-php:latest
     argocd-image-updater.argoproj.io/frankenphp.update-strategy: digest
     argocd-image-updater.argoproj.io/frankenphp.pull-secret: pullsecret:argocd/regsecret
     argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-git-creds

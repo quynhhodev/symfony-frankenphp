@@ -17,15 +17,30 @@ spec:
         image: devho/franken-php:latest
         env:
           - name: DB_HOST
-            value: "postgres-service" # Tên Service của Postgres
+            valueFrom:
+              configMapKeyRef:
+                name: frankenphp
+                key: DB_HOST
           - name: DB_PORT
-            value: "5432"
-          - name: DATABASE_URL
-            value: "postgresql://postgres:mysecretpassword@postgres-service:5432/myapp_db?serverVersion=15&charset=utf8"
+            valueFrom:
+              configMapKeyRef:
+                name: frankenphp
+                key: DB_PORT
           - name: DB_USER
-            value: "postgres"
+            valueFrom:
+              configMapKeyRef:
+                name: frankenphp
+                key: DB_USER
           - name: DB_PASSWORD
-            value: "mysecretpassword" # Trong thực tế nên dùng K8s Secrets
+            valueFrom:
+              secretKeyRef:
+                name: frankenphp-secret
+                key: password
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: frankenphp-secret
+                key: database_url
         envFrom:
           - configMapRef:
               name: frankenphp
