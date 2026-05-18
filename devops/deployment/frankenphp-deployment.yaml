@@ -15,6 +15,7 @@ spec:
       containers:
       - name: frankenphp
         image: devho/franken-php:latest
+        imagePullPolicy: Always
         env:
           - name: DB_HOST
             valueFrom:
