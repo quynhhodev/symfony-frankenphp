@@ -3,18 +3,11 @@ kind: Application
 metadata:
   name: frankenphp
   annotations:
-    # ArgoCD Image Updater: tự động phát hiện image mới trên DockerHub
-    # Theo dõi digest của tag 'latest' - khi CI push image mới lên Docker Hub
-    # Image Updater sẽ commit tag mới vào Git, ArgoCD tự sync deployment
     argocd-image-updater.argoproj.io/image-list: frankenphp=docker.io/devho/franken-php:latest
     argocd-image-updater.argoproj.io/frankenphp.update-strategy: digest
-    # If your cluster does not run argocd/image-updater in the 'argocd' namespace,
-    # set the pull-secret name without a namespace so ImageRepository/ImagePolicy
-    # controllers running in the target namespace can reference it.
     argocd-image-updater.argoproj.io/frankenphp.pull-secret: regsecret
-    argocd-image-updater.argoproj.io/write-back-method: git:secret:default/argocd-image-updater-git-creds
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-secret
     argocd-image-updater.argoproj.io/git-branch: main
-    argocd-image-updater.argoproj.io/frankenphp.force-update: "false"
 spec:
   project: default
   source:
