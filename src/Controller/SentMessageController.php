@@ -19,28 +19,28 @@ final class SentMessageController extends AbstractController
     #[Route('/sent/message', name: 'app_sent_message')]
     public function index(): JsonResponse
     {
-        $data = [
-            'messaging_product' => 'whatsapp',
-            'to' => '84981617653',
-            'type' => 'template',
-            'template' => [
-                'name' => 'hello_world',
-                'language' => [
-                    'code' => 'en_US'
-                ]
-            ]
-                ];
+        // $data = [
+        //     'messaging_product' => 'whatsapp',
+        //     'to' => '84981617653',
+        //     'type' => 'template',
+        //     'template' => [
+        //         'name' => 'hello_world',
+        //         'language' => [
+        //             'code' => 'en_US'
+        //         ]
+        //     ]
+        //         ];
 
-        $res = $this->whatsappClient->request(
-            'POST',
-            'https://graph.facebook.com/v22.0/794938290379865/messages',
-            [
-                'json' => $data
-            ]
-        );
+        // $res = $this->whatsappClient->request(
+        //     'POST',
+        //     'https://graph.facebook.com/v22.0/794938290379865/messages',
+        //     [
+        //         'json' => $data
+        //     ]
+        // );
 // dd($res);
         return $this->json([
-            'message' => 'abc!',
+            'message' => 'abcd!',
             'path' => 'src/Controller/SentMessageController.php',
         ]);
     }
