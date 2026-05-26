@@ -20,9 +20,6 @@ class User
     #[ORM\Column]
     private ?int $age = null;
 
-    #[ORM\Column(unique: true)]
-    private ?int $recident_id = null;
-
     public function getId(): ?int
     {
         return $this->id;
@@ -48,18 +45,6 @@ class User
     public function setAge(int $age): static
     {
         $this->age = $age;
-
-        return $this;
-    }
-
-    public function getRecidentId(): ?int
-    {
-        return $this->recident_id;
-    }
-
-    public function setRecidentId(int $recident_id): static
-    {
-        $this->recident_id = $recident_id;
 
         return $this;
     }
