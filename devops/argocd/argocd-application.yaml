@@ -15,8 +15,8 @@ spec:
     targetRevision: main
     path: devops
     directory:
-      # Loại trừ thư mục argocd (bootstrap files) và fluxcd (đã thay thế)
-      exclude: '{argocd/**,fluxcd/**}'
+      # Loại trừ thư mục argocd (bootstrap files)
+      exclude: 'argocd/**'
   destination:
     server: https://kubernetes.default.svc
     namespace: default
