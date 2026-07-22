@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frankenphp
+data:
+  APP_RUNTIME_ENV: 'prod'
+  APP_ENV: 'dev'
+  SERVER_NAME: ':80'
+  DB: 'myapp_db'
+  DB_HOST: 'postgres-service'
+  DB_PORT: '5432'
+  DB_USER: 'postgres'
