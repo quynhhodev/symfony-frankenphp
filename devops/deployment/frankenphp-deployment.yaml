@@ -46,13 +46,36 @@ spec:
           - configMapRef:
               name: frankenphp
         resources:
-          limits:
+          requests:
             memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
             cpu: "500m"
         ports:
         - containerPort: 80
-      volumes:
-      - name: frankenphp-volume
+        # Chờ container khởi động xong (tối đa 60s) trước khi bật liveness/readiness
+        startupProbe:
+          tcpSocket:
+            port: 80
+          periodSeconds: 2
+          failureThreshold: 30
+        # Kubernetes chỉ route traffic vào pod khi readiness pass
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Nếu liveness fail liên tục, Kubernetes sẽ restart container
+        livenessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
       imagePullSecrets:
       - name: regsecret
 

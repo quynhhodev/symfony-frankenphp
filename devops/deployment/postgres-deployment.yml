@@ -31,6 +31,22 @@ spec:
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data # Thư mục mặc định Postgres lưu data
+          # Kiểm tra Postgres đã sẵn sàng nhận kết nối chưa
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Nếu Postgres treo, Kubernetes sẽ restart container
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
               memory: "256Mi"
