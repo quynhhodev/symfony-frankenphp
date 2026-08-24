@@ -2,6 +2,14 @@ doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
 
+        # Database này dùng chung với các tool ngoài Symfony: Hasura tự tạo
+        # schema hdb_catalog, sắp tới sẽ có thêm Debezium. Doctrine chỉ chịu
+        # trách nhiệm cho search_path — mọi schema riêng của tool khác đều bỏ qua.
+        # Không lọc thì schema:validate coi chúng là drift, và migrations:diff
+        # sẽ sinh lệnh DROP chúng (đó chính là Version20260414082747 đã bị xoá).
+        # Quy ước: tool mới phải nằm trong schema riêng, không thả bảng vào public.
+        schema_filter: '~^(?!.*\.)~'
+
         # IMPORTANT: You MUST configure your server version,
         # either here or in the DATABASE_URL env var (see .env file)
         #server_version: '16'

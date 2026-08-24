@@ -45,5 +45,3 @@ spec:
         envFrom:
           - configMapRef:
               name: frankenphp
-      imagePullSecrets:
-      - name: regsecret

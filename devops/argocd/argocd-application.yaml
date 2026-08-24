@@ -1,13 +1,20 @@
+# Đưa toàn bộ manifest trong devops/ vào ArgoCD quản lý.
+#
+# File bootstrap — nằm trong argocd/ nên bị chính Application này loại trừ,
+# ArgoCD không tự quản chính nó. Apply tay:
+#   kubectl --context multipass apply -n argocd -f devops/argocd/argocd-application.yaml
+#
+# LƯU Ý: file không khai báo metadata.namespace, nên `-n argocd` là bắt buộc.
+# Thiếu nó thì Application rơi vào ns default và argocd không thấy.
+#
+# THỨ TỰ: file này bật `automated`, nên chỉ apply SAU KHI CI đã commit tag sha
+# thật vào manifest và bạn đã Sync tay một lần thành công. Apply sớm thì lần
+# sync tự động đầu tiên kéo Deployment về `:latest`.
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: frankenphp
-  annotations:
-    argocd-image-updater.argoproj.io/image-list: frankenphp=docker.io/devho/franken-php:latest
-    argocd-image-updater.argoproj.io/frankenphp.update-strategy: digest
-    argocd-image-updater.argoproj.io/frankenphp.pull-secret: regsecret
-    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-secret
-    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
   source:
@@ -15,15 +22,30 @@ spec:
     targetRevision: main
     path: devops
     directory:
-      # Loại trừ thư mục argocd (bootstrap files)
+      # BẮT BUỘC. Mọi manifest đều nằm trong thư mục con; tầng top-level của
+      # devops/ chỉ có values.yaml (không phải k8s manifest). Thiếu recurse là
+      # ArgoCD sync ra đúng con số không.
+      recurse: true
+      # Loại trừ thư mục bootstrap, gồm cả chính file này.
       exclude: 'argocd/**'
   destination:
     server: https://kubernetes.default.svc
     namespace: default
   syncPolicy:
     automated:
-      prune: true      # Xóa resource không còn trong Git
-      selfHeal: true   # Tự phục hồi nếu cluster bị drift
+      # Xoá resource đã bị bỏ khỏi Git. Đây là thứ dọn 5 resource còn lại của
+      # image-watcher (CronJob + SA + Role + RoleBinding + ConfigMap).
+      prune: true
+      #
+      # selfHeal CỐ Ý chưa bật.
+      #
+      # Auto-sync theo commit đã đủ cho auto-rollout. selfHeal chỉ thêm phần đè
+      # drift thủ công, nhưng mỗi lần nó kích Sync là hook PostSync
+      # (doctrine-migrations) chạy lại — mà app này chưa từng sync xanh lần nào.
+      # Có resource nào kẹt OutOfSync là thành vòng lặp sync vô tận.
+      #
+      # Chỉ thêm `selfHeal: true` sau khi app đứng Synced/Healthy ổn định qua
+      # vài lần push, rồi apply lại file này.
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
