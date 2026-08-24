@@ -32,6 +32,16 @@ services:
       start_period: 60s
     volumes:
       - database_data:/var/lib/postgresql/data:rw
+  # CẢNH BÁO: service này dùng chung database 'app' với Symfony và tự tạo
+  # schema hdb_catalog trong đó.
+  #
+  # Tool nào dùng chung database này BẮT BUỘC phải giữ bảng của nó trong một
+  # schema riêng, KHÔNG thả vào public. doctrine.yaml lọc mọi schema ngoài
+  # search_path, nên schema riêng thì vô hình với Doctrine; còn bảng rơi vào
+  # public sẽ làm `doctrine:schema:validate` đỏ trên CI (test.yml).
+  #
+  # Sắp thêm Debezium: khai signal/heartbeat table dạng đủ 3 phần
+  # (<database>.debezium.signal) thay vì để mặc định vào public.
   hasura:
     image: hasura/graphql-engine:v2.42.0
     ports:

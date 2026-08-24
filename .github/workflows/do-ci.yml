@@ -3,6 +3,19 @@ name: Build & Push
 on:
   push:
     branches: [ "main" ]
+    # Workflow này tự commit tag ngược lại repo, và commit đó chỉ đụng devops/.
+    # Không bỏ qua thì: build -> commit -> build -> commit -> vô tận.
+    # GITHUB_TOKEN mặc định vốn đã không kích workflow, nên đây là lớp phòng thủ
+    # thứ hai — nó thành bắt buộc nếu sau này đổi sang PAT hoặc deploy key.
+    paths-ignore:
+      - 'devops/**'
+
+# Push dồn hai commit thì chỉ commit mới nhất đi tiếp. Thiếu nhóm này thì hai run
+# chạy song song cùng push: run chậm hơn bị reject và Git đứng lại ở sha CŨ, tức
+# deploy lùi mà không có gì báo.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
 
 env:
   repository: devho/franken-php
@@ -10,9 +23,15 @@ env:
 jobs:
   bake:
     runs-on: ubuntu-latest
+    permissions:
+      # cần quyền ghi để commit tag vừa build ngược lại manifest
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # step cuối có rebase; fetch-depth mặc định là 1 nên rebase sẽ hỏng
+          fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v3
 
@@ -31,3 +50,54 @@ jobs:
             ${{ env.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Git là source of truth cho image đang chạy. Ghi tag vừa build vào
+      # manifest rồi commit — ArgoCD thấy commit mới là tự rollout.
+      # Không dùng :latest trong manifest vì nó không cho biết pod đang chạy
+      # build nào; tag theo commit sha thì git log thành lịch sử deploy.
+      - name: Ghi tag vừa build vào manifest
+        run: |
+          set -euo pipefail
+          repo='${{ env.repository }}'
+          new="${repo}:${{ github.sha }}"
+
+          # Hai file phải cùng một tag. migration-job là hook PostSync dùng
+          # imagePullPolicy: Always, lệch tag là migration chạy trên build khác app.
+          files=(
+            devops/deployment/frankenphp-deployment.yaml
+            devops/deployment/migration-job.yaml
+          )
+
+          for f in "${files[@]}"; do
+            grep -q "image: ${repo}" "$f" || {
+              echo "LỖI: không tìm thấy image ${repo} trong $f" >&2; exit 1; }
+            sed -i -E "s#image: ${repo}[^[:space:]]*#image: ${new}#" "$f"
+          done
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${files[@]}"
+
+          # Build lại đúng commit cũ thì manifest không đổi — thoát êm.
+          if git diff --cached --quiet; then
+            echo "manifest đã đúng tag ${new}, không cần commit"
+            exit 0
+          fi
+
+          git commit -m "ci: cập nhật image sang ${{ github.sha }}"
+
+          # concurrency lo được race giữa hai run CI, nhưng không lo được việc
+          # người push tay vào main trong lúc build. Rebase rồi thử lại.
+          # Rebase xung đột thì để fail luôn — CI đỏ còn hơn Git ghi sai tag.
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "đã push (lần thử ${i})"
+              exit 0
+            fi
+            echo "push bị từ chối, rebase lên origin/main rồi thử lại..." >&2
+            git fetch origin main
+            git rebase FETCH_HEAD
+          done
+
+          echo "LỖI: push thất bại sau 3 lần — Git vẫn đang ghi tag cũ" >&2
+          exit 1

@@ -42,6 +42,15 @@ spec:
               secretKeyRef:
                 name: frankenphp-secret
                 key: database_url
+          # Token thật không nằm trong Git (repo public) — nạp bằng `kubectl patch
+          # secret frankenphp-secret`. `optional: true` là bắt buộc: thiếu nó thì
+          # mọi pod đứng CreateContainerConfigError cho tới khi có ai patch tay.
+          - name: FACEBOOK_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: frankenphp-secret
+                key: facebook_access_token
+                optional: true
         envFrom:
           - configMapRef:
               name: frankenphp
@@ -76,8 +85,6 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 3
           failureThreshold: 3
-      imagePullSecrets:
-      - name: regsecret
 
 
 
