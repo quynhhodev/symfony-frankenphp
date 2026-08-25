@@ -31,6 +31,22 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: default
+  # StatefulSet có `volumeClaimTemplates` thì API server nhồi vào đó những field mà Git
+  # không thể khai báo được — `status: {phase: Pending}`, `apiVersion`, `kind`,
+  # `metadata.creationTimestamp: null`. ArgoCD không normalize được nên StatefulSet đỏ
+  # OutOfSync vĩnh viễn dù cluster đúng y như Git.
+  #
+  # Bỏ qua nghe rộng, nhưng `volumeClaimTemplates` là field IMMUTABLE — muốn đổi phải xoá
+  # tạo lại StatefulSet — nên thực tế không mất khả năng phát hiện drift nào đáng kể.
+  #
+  # Đây không phải chuyện thẩm mỹ: còn vết đỏ giả là còn người muốn tick Force cho nó
+  # xanh, và Force trên PVC là cách data postgres bay mất ngày 25/08/2026.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: postgres
+      jsonPointers:
+        - /spec/volumeClaimTemplates
   syncPolicy:
     automated:
       # Xoá resource đã bị bỏ khỏi Git. Đây là thứ dọn 5 resource còn lại của

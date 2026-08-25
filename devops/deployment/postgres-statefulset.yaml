@@ -81,7 +81,10 @@ spec:
               cpu: "250m"
             limits:
               memory: "1Gi"
-              cpu: "1000m"
+              # Viết "1", KHÔNG viết "1000m". Cùng một giá trị, nhưng API server chuẩn hoá
+              # về dạng "1" — Git ghi khác đi là ArgoCD báo OutOfSync vĩnh viễn. Vết đỏ giả
+              # kiểu này chính là thứ dụ người ta tick Force cho nó xanh.
+              cpu: "1"
   volumeClaimTemplates:
     - metadata:
         name: postgres-storage
