@@ -1,0 +1,98 @@
+# Postgres chạy StatefulSet, KHÔNG phải Deployment. Cả hai lý do đều là bài học trả giá
+# bằng data thật (25/08/2026):
+#
+# 1. PVC sinh ra từ `volumeClaimTemplates` KHÔNG phải resource ArgoCD quản lý. Sync kèm
+#    Force/Replace là delete + recreate MỌI resource — gặp PVC trên StorageClass
+#    `reclaimPolicy: Delete` thì đó là lệnh xoá sạch data. Đưa PVC ra khỏi tầm với của
+#    ArgoCD bịt hẳn đường đó, thay vì trông vào việc nhớ đừng tick Force.
+# 2. Deployment mặc định RollingUpdate `maxSurge: 25%`, với `replicas: 1` làm tròn lên
+#    thành 1 → hai pod postgres cùng mount một data dir. Postgres chặn bằng
+#    `postmaster.pid` nên pod mới không start nổi, rollout deadlock. StatefulSet không
+#    bao giờ surge: kill pod cũ xong mới tạo pod mới.
+#
+# LƯU Ý VẬN HÀNH: PVC do StatefulSet tạo tên là `postgres-storage-postgres-0` và cố ý
+# KHÔNG bị xoá theo khi xoá StatefulSet. Muốn xoá data phải xoá PVC bằng tay.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  # Trỏ vào Service headless, không phải `postgres-service`. StatefulSet cần headless
+  # service để cấp DNS định danh cho từng pod; app vẫn kết nối qua `postgres-service`.
+  serviceName: postgres-headless
+  replicas: 1 # Database chạy 1 bản để tránh xung đột dữ liệu (trừ khi dùng cluster chuyên dụng)
+  selector:
+    matchLabels:
+      app: postgres
+  # Mặc định vốn đã là Retain, nhưng khai báo thẳng ra vì đây chính là tính chất đã chọn
+  # StatefulSet để có: xoá/scale StatefulSet không được phép đụng vào volume.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: postgres # `postgres-service` select theo label này — đổi là app mất DB
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: frankenphp
+                  key: DB
+            # Cho initdb ghi vào thư mục CON của volume chứ không phải gốc volume. Gốc
+            # volume có thể chứa sẵn thứ khác (ext4 sinh `lost+found`, provisioner để lại
+            # file) và initdb từ chối chạy trên thư mục không rỗng.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          # Kiểm tra Postgres đã sẵn sàng nhận kết nối chưa
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Nếu Postgres treo, Kubernetes sẽ restart container
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "$(POSTGRES_DB)"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        # Khai báo thẳng storageClassName + volumeMode thay vì để API server tự điền.
+        # Field do server điền mà Git không có chính là thứ làm resource đỏ OutOfSync
+        # vĩnh viễn — và vết đỏ giả đó là cái đã dụ người ta tick Force.
+        storageClassName: local-path
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 1Gi

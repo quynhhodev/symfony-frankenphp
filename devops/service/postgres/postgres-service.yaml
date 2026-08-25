@@ -1,8 +1,24 @@
+# Service app dùng để kết nối DB. `DB_HOST` trong configmap trỏ đúng vào tên này.
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres-service
 spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Service headless cho StatefulSet. Không có ClusterIP, chỉ tồn tại để cấp DNS định danh
+# cho từng pod (`postgres-0.postgres-headless.default.svc`). StatefulSet BẮT BUỘC có
+# `serviceName` trỏ vào một service kiểu này — app thì vẫn dùng `postgres-service` ở trên.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+spec:
+  clusterIP: None
   selector:
     app: postgres
   ports:
