@@ -1,0 +1,32 @@
+# Tên `rabbitmq` là BẮT BUỘC — đó là host trong MESSENGER_TRANSPORT_DSN
+# (amqp://…@rabbitmq:5672). Đổi tên service là app mất broker.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    # UI quản trị. Chưa có ingress — vào tạm bằng:
+    #   kubectl --context multipass -n default port-forward svc/rabbitmq 15672:15672
+    - name: management
+      port: 15672
+      targetPort: management
+---
+# Service headless cho `serviceName` của StatefulSet. App vẫn dùng service ở trên.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+spec:
+  clusterIP: None
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
