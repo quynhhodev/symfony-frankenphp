@@ -1,0 +1,99 @@
+# RabbitMQ chạy StatefulSet, không phải Deployment — cùng lý do như postgres
+# (xem postgres-statefulset.yaml): broker là stateful, và PVC sinh từ
+# volumeClaimTemplates nằm ngoài tầm quản của ArgoCD nên Sync kèm Force/Replace
+# không xoá được data.
+#
+# Vì sao cần broker: `config/packages/messenger.yaml` route App\Message\AMessage sang
+# transport `common` = MESSENGER_TRANSPORT_DSN = amqp://…@rabbitmq:5672. Không có broker
+# thì EnvDataController::index() ném TransportException và /env/data trả 500.
+#
+# LƯU Ý: Service phải tên đúng `rabbitmq` — đó là host trong DSN.
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+spec:
+  serviceName: rabbitmq-headless
+  replicas: 1 # Broker 1 node, đủ cho dev. Cluster nhiều node cần thêm peer discovery plugin.
+  selector:
+    matchLabels:
+      app: rabbitmq
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: rabbitmq # Service `rabbitmq` select theo label này
+    spec:
+      containers:
+        - name: rabbitmq
+          # Bản -management có sẵn UI ở cổng 15672. Pin theo minor để nâng cấp là việc
+          # có ý thức, không phải tác dụng phụ của một lần pull.
+          image: rabbitmq:3.13-management-alpine
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          env:
+            # Phải khớp user/pass trong MESSENGER_TRANSPORT_DSN, nếu không app bị
+            # ACCESS_REFUSED và lỗi trông y như không có broker.
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: rabbitmq_user
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: rabbitmq_password
+          volumeMounts:
+            - name: rabbitmq-storage
+              mountPath: /var/lib/rabbitmq
+          # `ping` chỉ hỏi node còn sống; đủ cho liveness.
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 3
+          # readiness khắt khe hơn `ping`: kiểm listener đã thật sự nhận được kết nối.
+          # Node "sống" mà cổng 5672 chưa mở thì app vẫn ném TransportException.
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 15
+            failureThreshold: 6
+          # Khởi động chậm hơn postgres nhiều (Erlang VM + plugin), cho hạn 3 phút
+          # trước khi liveness được phép giết.
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 10
+            failureThreshold: 18
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              # Viết "1", KHÔNG viết "1000m" — API server chuẩn hoá về "1" và Git ghi
+              # khác đi là ArgoCD báo OutOfSync vĩnh viễn.
+              cpu: "1"
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: 1Gi
