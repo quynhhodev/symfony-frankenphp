@@ -17,7 +17,7 @@ final class UsersController extends AbstractController
         private UserRepository $userRepo
     ) {}
 
-    #[Route('/users', name: 'app_env_data')]
+    #[Route('/users', name: 'app_users')]
     public function index(MessageBusInterface $bus, EntityManagerInterface $em): JsonResponse
     {
         $users = $this->userRepo->findAll();
