@@ -12,7 +12,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: migration
-        image: devho/franken-php:1741fbfda0b54a9e57d1f991fa20d7d3f325a4a9
+        image: devho/franken-php:d1b71b406b4e55ff55ee6b38c0473ac61dc31787
         imagePullPolicy: Always
         workingDir: /app/public
         command: ["php", "bin/console", "doctrine:migrations:migrate", "--no-interaction"]
