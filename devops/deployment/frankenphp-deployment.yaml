@@ -51,19 +51,23 @@ spec:
                 name: frankenphp-secret
                 key: facebook_access_token
                 optional: true
-          # Broker mà Messenger đẩy App\Message\AMessage vào. Cùng lý do như trên: DSN
-          # chứa password nên không nằm trong Git, phải `kubectl patch` vào.
+          # Broker mà Messenger đẩy App\Message\AMessage vào.
           #
-          # `optional: true` khiến pod vẫn chạy khi chưa patch — lúc đó Symfony rơi về
-          # DSN trong `.env` nướng sẵn của image. Đó là fallback, KHÔNG phải nơi cấu hình:
-          # manifest phải nói được app đang nói chuyện với broker nào, và đổi broker
-          # không được đòi build lại image.
+          # CỐ Ý KHÔNG `optional: true`, ngược hẳn với FACEBOOK_ACCESS_TOKEN ở trên. Thiếu
+          # key thì pod đứng CreateContainerConfigError và `kubectl describe pod` chỉ thẳng
+          # key nào thiếu — đó là điều TỐT, vì thiếu DSN là app hỏng chứ không phải app
+          # chạy thiếu một tính năng.
+          #
+          # Ngày 26/08/2026 `optional: true` đã trả giá: pod khởi động 07:12 lúc secret chưa
+          # có key, key thêm vào lúc 07:37, mà đổi Secret thì không restart pod nên biến vẫn
+          # rỗng. Symfony âm thầm rơi về DSN nướng trong `.env` của image (password cũ) và
+          # /env/data trả 500 kèm "Could not connect to the AMQP server" — trông y như broker
+          # chết, trong khi broker hoàn toàn khoẻ.
           - name: MESSENGER_TRANSPORT_DSN
             valueFrom:
               secretKeyRef:
                 name: frankenphp-secret
                 key: messenger_transport_dsn
-                optional: true
         envFrom:
           - configMapRef:
               name: frankenphp
