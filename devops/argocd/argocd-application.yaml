@@ -41,10 +41,13 @@ spec:
   #
   # Đây không phải chuyện thẩm mỹ: còn vết đỏ giả là còn người muốn tick Force cho nó
   # xanh, và Force trên PVC là cách data postgres bay mất ngày 25/08/2026.
+  #
+  # CỐ Ý không ghi `name:` — rule áp cho MỌI StatefulSet. Ghi đích danh `postgres` thì mỗi
+  # StatefulSet mới lại đỏ cho tới khi có người nhớ thêm entry, và rabbitmq đã dính đúng
+  # vậy. Lập luận IMMUTABLE ở trên đúng cho mọi StatefulSet chứ không riêng postgres.
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
-      name: postgres
       jsonPointers:
         - /spec/volumeClaimTemplates
   syncPolicy:
