@@ -1,0 +1,47 @@
+# Truy cập ArgoCD UI qua ingress thay vì port-forward.
+#
+# File bootstrap — nằm trong argocd/ nên bị Application CR loại trừ (exclude: 'argocd/**'),
+# ArgoCD không tự quản chính nó. Apply tay:
+#   kubectl --context multipass apply -f devops/argocd/argocd-ingress.yaml
+#
+# Vào bằng: http://argocd.local:32723  (32723 = NodePort http của ingress-nginx)
+# Cần thêm vào /etc/hosts:  10.62.164.198 argocd.local
+# (đó là IP của k8s-worker1, nhưng NodePort mở trên MỌI node — 10.62.164.150
+#  hay 10.62.164.61 đều vào được. Node nào chết thì trỏ sang node khác.)
+---
+# argocd-server mặc định tự serve TLS và redirect http -> https, đi qua ingress
+# sẽ thành redirect loop. Bật insecure để nó chỉ nói HTTP thuần, còn TLS thì
+# để ingress lo (ở local thì không cần TLS luôn).
+#
+# LƯU Ý: upgrade ArgoCD bằng install.yaml sẽ ghi đè ConfigMap này -> apply lại file.
+# ! kubectl --context multipass -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  server.insecure: "true"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                # port http (80 -> 8080 trong container), dùng được vì đã bật insecure
+                port:
+                  name: http
