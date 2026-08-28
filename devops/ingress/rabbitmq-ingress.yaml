@@ -1,0 +1,40 @@
+# Management UI của RabbitMQ (cổng 15672) qua ingress, thay cho port-forward.
+#
+# KHÁC với devops/argocd/argocd-ingress.yaml: file này nằm ngoài argocd/ nên ArgoCD
+# quản nó bình thường — merge là có, không phải apply tay.
+#
+# Vào bằng: http://rabbitmq.local:32723   (32723 = NodePort http của ingress-nginx)
+# Thêm vào /etc/hosts:  10.62.164.198 rabbitmq.local
+# (IP nào của node cũng được — 10.62.164.150 / .198 / .61 — NodePort mở trên mọi node.)
+#
+# Đăng nhập: quynh / local-dev-only
+# Password nằm plaintext trong devops/configmap/rabbitmq-definitions.yaml LÀ CÓ CHỦ
+# ĐÍCH — xem lý do trong devops/secret/secret.yaml. Viết ra đây không lộ thêm gì.
+#
+# CẢNH BÁO: đây là UI quản trị đầy đủ — xoá queue, xoá user, đọc message. Nó chỉ an
+# toàn vì cluster multipass này nằm trong mạng nội bộ. Ngày nào cluster ra internet
+# thì file này thành cửa trước bỏ ngỏ: lúc đó phải thêm auth ở tầng ingress và xoay
+# password sang giá trị thật.
+#
+# Không expose cổng 5672 (AMQP) qua ingress: ingress-nginx là HTTP reverse proxy,
+# AMQP là giao thức nhị phân riêng. App nói chuyện với broker qua Service nội bộ.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: rabbitmq.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbitmq
+                # Dùng tên port thay vì số: svc rabbitmq khai `management`, đổi số
+                # cổng ở một chỗ là ingress theo được, không phải sửa hai nơi.
+                port:
+                  name: management
