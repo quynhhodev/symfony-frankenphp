@@ -1,0 +1,101 @@
+# Consumer cho transport `common`. Trước file này KHÔNG có ai chạy
+# `messenger:consume` — không trong k8s, không trong compose.yml, không trong
+# Dockerfile — nên AMessageHandler/BMessageHandler là code chết trong cluster và
+# queue chỉ có vào, không có ra. Để lâu là RabbitMQ bật alarm memory/disk rồi
+# chặn publisher, và /env/data quay lại 500.
+#
+# Dấu hiệu cho thấy worker vốn đã được tính tới từ đầu: `workers_bus` trong
+# messenger.yaml khai `doctrine_ping_connection` + `doctrine_close_connection`,
+# hai middleware chỉ có nghĩa với process chạy dài.
+#
+# Tách khỏi frankenphp Deployment CÓ CHỦ ĐÍCH: scale web theo traffic HTTP không
+# liên quan gì tới scale worker theo độ sâu queue. Nhét làm sidecar thì
+# `replicas: 2` của web thành 2 worker dù chẳng ai cần.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messenger-worker
+spec:
+  replicas: 1 # 1 consumer đủ cho dev. Queue sâu lên thì tăng replicas, handler phải idempotent.
+  selector:
+    matchLabels:
+      app: messenger-worker
+  template:
+    metadata:
+      labels:
+        app: messenger-worker
+    spec:
+      # Messenger bắt SIGTERM, xử nốt message đang cầm rồi mới thoát. Handler ở đây
+      # chạy vài chục ms nên 30s dư sức. Handler nào chạy lâu hơn ngưỡng này thì
+      # phải nâng số lên, không thì k8s SIGKILL giữa chừng và message quay lại queue.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: worker
+          image: devho/franken-php:d1b71b406b4e55ff55ee6b38c0473ac61dc31787
+          imagePullPolicy: Always
+          workingDir: /app/public
+          # --time-limit=3600: worker tự thoát mỗi giờ để k8s dựng lại. BẮT BUỘC —
+          #   process chạy dài giữ nguyên code cũ trong bộ nhớ, deploy image mới mà
+          #   không restart thì worker chạy build cũ vô thời hạn, im lặng.
+          # --memory-limit=128M: chốt dưới `limits.memory` để PHP tự thoát sạch thay
+          #   vì bị OOMKill giữa lúc đang cầm message.
+          # -vv: mỗi message xử xong in một dòng. Đây là cách duy nhất nhìn thấy
+          #   fan-out (một AMessage → hai handler) đang thật sự chạy.
+          command:
+            - php
+            - bin/console
+            - messenger:consume
+            - common
+            - -vv
+            - --time-limit=3600
+            - --memory-limit=128M
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: frankenphp
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: frankenphp
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: frankenphp
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: password
+            # Worker cần DB không kém gì web: handler ghi User, và failure_transport
+            # `failed` là doctrine:// nên message chết cũng đi vào chính DB này.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: database_url
+            # CỐ Ý KHÔNG `optional: true`, cùng lý do như frankenphp-deployment.yaml:
+            # worker thiếu DSN thì vô dụng hoàn toàn, đứng CreateContainerConfigError
+            # còn tốt hơn là chạy im lặng mà không rút message nào.
+            - name: MESSENGER_TRANSPORT_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: frankenphp-secret
+                  key: messenger_transport_dsn
+          envFrom:
+            - configMapRef:
+                name: frankenphp
+          # KHÔNG có readiness/liveness probe: worker không mở cổng nào, và không có
+          # lệnh rẻ tiền nào phân biệt "đang chờ message" với "treo". `--time-limit`
+          # cộng restartPolicy Always đã lo phần dựng lại định kỳ.
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

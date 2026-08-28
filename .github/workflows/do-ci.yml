@@ -61,16 +61,24 @@ jobs:
           repo='${{ env.repository }}'
           new="${repo}:${{ github.sha }}"
 
-          # Hai file phải cùng một tag. migration-job là hook PostSync dùng
-          # imagePullPolicy: Always, lệch tag là migration chạy trên build khác app.
-          files=(
-            devops/deployment/frankenphp-deployment.yaml
-            devops/deployment/migration-job.yaml
-          )
+          # MỌI manifest nhắc tới image này phải cùng một tag: app, migration-job
+          # (hook PostSync, imagePullPolicy Always) và messenger-worker. Lệch tag là
+          # ba build khác nhau cùng chạy trên một cluster.
+          #
+          # Quét động chứ KHÔNG liệt kê tay. Danh sách cứng trước đây có grep gác cho
+          # file nằm TRONG danh sách, nhưng file nằm ngoài thì bị bỏ qua không một
+          # tiếng động — thêm manifest mới mà quên sửa mảng là nó đóng đinh ở tag cũ
+          # vĩnh viễn, không có tín hiệu nào.
+          mapfile -t files < <(grep -rl "image: ${repo}" devops/)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "LỖI: không manifest nào trong devops/ nhắc tới image ${repo}" >&2
+            exit 1
+          fi
+
+          printf 'cập nhật tag trong: %s\n' "${files[@]}"
 
           for f in "${files[@]}"; do
-            grep -q "image: ${repo}" "$f" || {
-              echo "LỖI: không tìm thấy image ${repo} trong $f" >&2; exit 1; }
             sed -i -E "s#image: ${repo}[^[:space:]]*#image: ${new}#" "$f"
           done
 
