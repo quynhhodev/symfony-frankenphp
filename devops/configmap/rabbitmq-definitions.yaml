@@ -1,0 +1,47 @@
+# Credential của RabbitMQ khai bằng definitions, KHÔNG bằng RABBITMQ_DEFAULT_USER/PASS.
+#
+# Vì sao: hai biến đó chỉ có tác dụng khi mnesia còn RỖNG — tức lần boot đầu tiên của
+# một PVC mới. Broker đã có data rồi thì đổi chúng trong Git chẳng thay đổi gì, và
+# không có cơ chế nào phát hiện: Git nói password là X, broker giữ Y, app ăn
+# ACCESS_REFUSED — lỗi trông y hệt như broker chết. `load_definitions` thì được áp lại
+# MỖI LẦN BOOT, nên Git mới thật sự là source of truth cho credential.
+#
+# Import nhận `password` plaintext và tự hash — đã thử trên đúng image 3.13.7 này:
+# `rabbitmqctl import_definitions` với field `password`, rồi `authenticate_user` trả
+# Success. Không cần tự tính password_hash.
+#
+# BẤT BIẾN: password dưới đây phải KHỚP DSN trong devops/secret/secret.yaml.
+# Lệch nhau là ACCESS_REFUSED. test.yml có guard chặn lệch.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-definitions
+data:
+  # Mảnh config rơi vào /etc/rabbitmq/conf.d/. Image official đã đặt sẵn
+  # 10-defaults.conf ở đó, nên StatefulSet phải mount bằng subPath — mount cả thư mục
+  # sẽ che mất file của image.
+  20-definitions.conf: |
+    load_definitions = /etc/rabbitmq/definitions.json
+  definitions.json: |
+    {
+      "users": [
+        {
+          "name": "quynh",
+          "password": "local-dev-only",
+          "tags": ["administrator"]
+        }
+      ],
+      "vhosts": [
+        { "name": "/" }
+      ],
+      "permissions": [
+        {
+          "user": "quynh",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        }
+      ]
+    }

@@ -16,6 +16,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: messenger-worker
+  annotations:
+    # Reloader rolling-restart khi ConfigMap `frankenphp` hoặc Secret
+    # `frankenphp-secret` đổi. Thiếu nó thì ArgoCD sync xong nội dung mới nằm trong
+    # cluster mà pod vẫn giữ giá trị cũ từ lúc khởi động — đúng cơ chế đã để
+    # /env/data 500 suốt 25 phút ngày 26/08/2026 mà không ai biết.
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1 # 1 consumer đủ cho dev. Queue sâu lên thì tăng replicas, handler phải idempotent.
   selector:
