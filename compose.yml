@@ -69,7 +69,7 @@ services:
         protocol: tcp
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-quynh}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-quynh121201}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-local-dev-only}
       # RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS: true
 
 volumes:

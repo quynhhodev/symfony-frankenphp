@@ -13,6 +13,11 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: rabbitmq
+  annotations:
+    # Reloader restart broker khi ConfigMap rabbitmq-definitions đổi. Thiếu nó thì
+    # `load_definitions` chỉ áp ở lần boot kế tiếp — đổi password trong Git xong
+    # không có gì xảy ra, rồi vỡ vào lúc broker tình cờ restart vì lý do khác.
+    reloader.stakater.com/auto: "true"
 spec:
   serviceName: rabbitmq-headless
   replicas: 1 # Broker 1 node, đủ cho dev. Cluster nhiều node cần thêm peer discovery plugin.
@@ -37,22 +42,23 @@ spec:
               containerPort: 5672
             - name: management
               containerPort: 15672
-          env:
-            # Phải khớp user/pass trong MESSENGER_TRANSPORT_DSN, nếu không app bị
-            # ACCESS_REFUSED và lỗi trông y như không có broker.
-            - name: RABBITMQ_DEFAULT_USER
-              valueFrom:
-                secretKeyRef:
-                  name: frankenphp-secret
-                  key: rabbitmq_user
-            - name: RABBITMQ_DEFAULT_PASS
-              valueFrom:
-                secretKeyRef:
-                  name: frankenphp-secret
-                  key: rabbitmq_password
+          # CỐ Ý KHÔNG có RABBITMQ_DEFAULT_USER/PASS. Hai biến đó chỉ ăn khi mnesia
+          # rỗng, nên với broker đã có data chúng là nguồn sự thật giả: Git ghi một
+          # đằng, broker giữ một nẻo. Credential khai trong ConfigMap
+          # rabbitmq-definitions và được `load_definitions` áp lại mỗi lần boot.
           volumeMounts:
             - name: rabbitmq-storage
               mountPath: /var/lib/rabbitmq
+            # subPath chứ KHÔNG mount cả thư mục: /etc/rabbitmq/conf.d đã chứa
+            # 10-defaults.conf của image, mount đè thư mục là mất nó.
+            - name: definitions
+              mountPath: /etc/rabbitmq/conf.d/20-definitions.conf
+              subPath: 20-definitions.conf
+              readOnly: true
+            - name: definitions
+              mountPath: /etc/rabbitmq/definitions.json
+              subPath: definitions.json
+              readOnly: true
           # `ping` chỉ hỏi node còn sống; đủ cho liveness.
           livenessProbe:
             exec:
@@ -86,6 +92,10 @@ spec:
               # Viết "1", KHÔNG viết "1000m" — API server chuẩn hoá về "1" và Git ghi
               # khác đi là ArgoCD báo OutOfSync vĩnh viễn.
               cpu: "1"
+      volumes:
+        - name: definitions
+          configMap:
+            name: rabbitmq-definitions
   volumeClaimTemplates:
     - metadata:
         name: rabbitmq-storage

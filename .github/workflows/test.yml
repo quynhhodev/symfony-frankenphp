@@ -13,6 +13,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Password RabbitMQ buộc phải trùng ở hai nơi: DSN trong secret.yaml và
+      # definitions.json trong ConfigMap. Không có gì trong k8s ép được ràng buộc đó,
+      # và lệch nhau thì triệu chứng là ACCESS_REFUSED — trông y như broker chết,
+      # tốn hàng giờ để lần ra. Chặn ngay ở PR rẻ hơn nhiều.
+      - name: RabbitMQ password khớp giữa secret và definitions
+        run: |
+          set -euo pipefail
+          dsn=$(grep -oP 'amqp://[^:]+:\K[^@]+' devops/secret/secret.yaml || true)
+          def=$(grep -oP '"password"\s*:\s*"\K[^"]+' devops/configmap/rabbitmq-definitions.yaml || true)
+
+          if [ -z "$dsn" ] || [ -z "$def" ]; then
+            echo "LỖI: không trích được password (dsn='$dsn' definitions='$def')." >&2
+            echo "File đã đổi cấu trúc — sửa guard này thay vì xoá nó." >&2
+            exit 1
+          fi
+
+          if [ "$dsn" != "$def" ]; then
+            echo "LỖI: password lệch — DSN='$dsn' nhưng definitions.json='$def'." >&2
+            echo "RabbitMQ sẽ trả ACCESS_REFUSED và lỗi trông y như broker chết." >&2
+            exit 1
+          fi
+
+          echo "OK: password khớp ở cả hai nơi."
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Start services
