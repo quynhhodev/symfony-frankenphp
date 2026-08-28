@@ -22,8 +22,17 @@ services:
         protocol: tcp
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      # You should definitely change the password in production
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-quynh121201}
+      # Password đồ bỏ, cố ý để plaintext — cùng lý do như devops/secret/secret.yaml:
+      # cluster/compose này chỉ chạy local, và giá trị nào có thể trùng password thật
+      # mới là thứ không được nằm trong repo public.
+      #
+      # BẪY: POSTGRES_PASSWORD chỉ có tác dụng khi thư mục data còn RỖNG, tức lần
+      # `up` đầu tiên của một volume mới. Volume `database_data` đã init rồi thì đổi
+      # dòng này không đổi được gì — y hệt RABBITMQ_DEFAULT_PASS với mnesia. Muốn đổi
+      # password trên volume đang có:
+      #   docker compose exec database psql -U app -c "ALTER USER app WITH PASSWORD '<pass>'"
+      # (kết nối qua socket local nên không cần password cũ)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only}
       POSTGRES_USER: ${POSTGRES_USER:-app}
     healthcheck:
       test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
@@ -52,7 +61,11 @@ services:
       database:
         condition: service_healthy
     environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-quynh121201}@database:5432/${POSTGRES_DB:-app}
+      # Default ở đây phải KHỚP default của service `database` bên trên — cùng một
+      # biến, viết `:-` hai lần thì hai giá trị mặc định phải giống nhau, lệch là
+      # Hasura ăn auth error mà `compose up --wait` không bắt được (nó không có
+      # healthcheck).
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-local-dev-only}@database:5432/${POSTGRES_DB:-app}
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
       HASURA_GRAPHQL_DEV_MODE: "true"
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-mysecretkey}
