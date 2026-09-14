@@ -21,7 +21,7 @@ final class UsersController extends AbstractController
     public function index(MessageBusInterface $bus, EntityManagerInterface $em): JsonResponse
     {
         $users = $this->userRepo->findAll();
-        $this->logger->debug("Client called Users");
+        $this->logger->debug("Client called Usersss");
 
         return new JsonResponse(['users' => $users], 200);
     }
