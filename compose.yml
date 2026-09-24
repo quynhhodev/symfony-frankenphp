@@ -1,3 +1,15 @@
+# Process PHP chạy dòng lệnh, dùng chung image và code mount với `apache`.
+# Image có sẵn HEALTHCHECK của FrankenPHP (curl :2019). Process CLI không mở port đó,
+# nên để nguyên thì container đang chạy đúng vẫn bị báo `unhealthy`.
+x-php-cli: &php-cli
+  build:
+    context: .
+    dockerfile: ./docker/frankenphp/Dockerfile
+  volumes:
+    - ./:/app/public
+  healthcheck:
+    disable: true
+
 services:
   apache:
     build:
@@ -16,6 +28,13 @@ services:
 
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
+    # wal_level=logical cho Debezium (profile `cdc`).
+    #
+    # max_slot_wal_keep_size là trần cho WAL mà replication slot `debezium` giữ lại.
+    # Stack cdc mặc định TẮT nhưng slot vẫn nằm trong volume, và slot không ai đọc thì
+    # giữ WAL mãi mãi cho tới khi đầy đĩa. Vượt trần thì Postgres huỷ slot: connector
+    # phải drop slot rồi snapshot lại, event trong khoảng đó mất — với dev thì chấp nhận được.
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_slot_wal_keep_size=1GB"]
     ports:
       - target: 5432
         published: 5432
@@ -49,8 +68,10 @@ services:
   # search_path, nên schema riêng thì vô hình với Doctrine; còn bảng rơi vào
   # public sẽ làm `doctrine:schema:validate` đỏ trên CI (test.yml).
   #
-  # Sắp thêm Debezium: khai signal/heartbeat table dạng đủ 3 phần
-  # (<database>.debezium.signal) thay vì để mặc định vào public.
+  # Debezium (profile `cdc`) hiện không tạo bảng nào, chỉ có publication
+  # `dbz_publication` và replication slot `debezium`, Doctrine không nhìn thấy.
+  # Bật signal/heartbeat table thì khai dạng đủ 3 phần (<database>.debezium.signal)
+  # thay vì để mặc định vào public.
   hasura:
     image: hasura/graphql-engine:v2.42.0
     ports:
@@ -84,6 +105,160 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-quynh}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-local-dev-only}
       # RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS: true
+    # Container "started" chưa có nghĩa là cổng AMQP đã nhận kết nối: worker bật sớm
+    # sẽ crash "Could not connect to the AMQP server" rồi restart vài lần mới vào được.
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  # ---------------------------------------------------------------------------
+  # CDC: database → Debezium → Kafka → redpanda-connect → RabbitMQ → worker-cdc
+  # Bật bằng: docker compose --profile cdc up -d
+  # Blueprint và các bẫy: cdc-debezium-redpanda-rabbitmq.md
+  #
+  # Nằm trong profile riêng vì hai lý do. CI chạy `compose up --wait` lúc vendor/ chưa
+  # có, nên worker sẽ crash. Và Kafka + Debezium tốn khoảng 1GB RAM, phần lớn thời
+  # gian không ai cần.
+  #
+  # Thứ tự khởi động là BẮT BUỘC, và được ép bằng depends_on chứ không nhờ người nhớ:
+  #   migrate ──► register-connector   (bảng phải có trước publication)
+  #   kafka-init ──► redpanda-connect  (topic phải có trước consumer `latest`)
+  #
+  # Không service nào publish port: 9092 và các port khác của host thường đã có
+  # stack khác giữ. Mọi client đều nằm trong network của compose.
+  # ---------------------------------------------------------------------------
+
+  # Bảng `customer` phải có TRƯỚC khi đăng ký connector. Publication `filtered` không
+  # khớp bảng nào thì task Debezium FAILED "Unable to create filtered publication".
+  migrate:
+    <<: *php-cli
+    profiles: [cdc]
+    command: ["php", "bin/console", "doctrine:migrations:migrate", "--no-interaction", "--allow-no-migration"]
+    depends_on:
+      database:
+        condition: service_healthy
+
+  kafka:
+    image: apache/kafka:3.7.0
+    profiles: [cdc]
+    environment:
+      CLUSTER_ID: app-cdc-cluster
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: CONTROLLER://:9093,PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  # Topic phải có TRƯỚC khi redpanda-connect chạy. Để Debezium tạo lúc có event đầu tiên
+  # thì consumer `start_offset: latest` thấy partition sau khi event đã nằm trong đó, và
+  # event đầu tiên bị bỏ qua. 1 partition để mọi event của bảng giữ đúng thứ tự.
+  kafka-init:
+    image: apache/kafka:3.7.0
+    profiles: [cdc]
+    entrypoint: ["/opt/kafka/bin/kafka-topics.sh"]
+    command: ["--bootstrap-server", "kafka:9092", "--create", "--if-not-exists",
+              "--topic", "app.public.customer", "--partitions", "1", "--replication-factor", "1"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  connect:
+    image: quay.io/debezium/connect:2.7.3.Final
+    profiles: [cdc]
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      HEAP_OPTS: -Xms256m -Xmx512m
+      # Connector JSON viết `${env:POSTGRES_PASSWORD}` thay vì chép password vào file,
+      # nhờ EnvVarConfigProvider. Default ở đây phải KHỚP service `database`, cùng lý do như hasura.
+      CONNECT_CONFIG_PROVIDERS: env
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only}
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "localhost:8083/connectors"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      kafka:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+
+  # PUT /connectors/<name>/config là idempotent: tạo mới hoặc cập nhật. POST như blueprint
+  # trả 409 từ lần `up` thứ hai, one-shot fail kéo theo redpanda-connect không được bật.
+  # Sửa app-connector.json rồi `up` lại là config mới được áp.
+  register-connector:
+    image: curlimages/curl
+    profiles: [cdc]
+    command: >
+      -fsS -X PUT -H "Content-Type: application/json"
+      --data @/connector.json
+      http://connect:8083/connectors/app/config
+    volumes:
+      - ./docker/debezium/app-connector.json:/connector.json:ro
+    depends_on:
+      connect:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Worker tự thoát theo --time-limit (và cả khi decode lỗi), nên restart là bắt buộc.
+  # Cùng flag với devops/deployment/messenger-worker-deployment.yaml.
+  worker-cdc:
+    <<: *php-cli
+    profiles: [cdc]
+    command: ["php", "bin/console", "messenger:consume", "cdc", "-vv", "--time-limit=3600", "--memory-limit=128M"]
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Exchange `app_cdc` do worker-cdc tạo khi khởi động (redpanda cố ý không declare).
+  # Publish trước lúc đó thì retry giữ offset, nên không cần chờ worker healthy.
+  redpanda-connect:
+    image: docker.redpanda.com/redpandadata/connect:4.67.5
+    profiles: [cdc]
+    working_dir: /app
+    # Không có shell nên glob được truyền nguyên văn; redpanda-connect tự expand.
+    command: ["run", "-t", "./redpanda-connect/template/*.yaml", "-r", "./redpanda-connect/resource/app/*.yaml",
+              "./redpanda-connect/app.yaml"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_APP_TOPICS: app.public.customer
+      KAFKA_CONSUMER_GROUP: app.cdc
+      # Compose đọc từ .env, đúng biến Symfony dùng cho transport `cdc`: một nguồn duy nhất.
+      MESSENGER_TRANSPORT_DSN_PREFIX: ${MESSENGER_TRANSPORT_DSN_PREFIX:?phải khai trong .env}
+    volumes:
+      - ./redpanda-connect:/app/redpanda-connect:ro
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      worker-cdc:
+        condition: service_started
 
 volumes:
     caddy_data:

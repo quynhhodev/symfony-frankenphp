@@ -1,0 +1,43 @@
+# redpanda-connect tự tìm file này theo tên <pipeline>_benthos_test.yaml.
+#
+# Các cặp `metadata_equals.type` + `json_equals` bên dưới cũng chính là input của
+# tests/Messenger/CdcContractTest.php: một nguồn hợp đồng cho cả hai phía.
+tests:
+    -   name: insert emits two envelopes
+        target_processors: '/pipeline/processors'
+        input_batch:
+            -   content: '{"before":null,"after":{"id":"0199a1b2-0000-7000-8000-000000000001","email":"a@example.com"},"source":{"name":"app","schema":"public","table":"customer"},"op":"c"}'
+        output_batches:
+            -   -   metadata_equals:
+                        type: 'App\Message\CustomerChangedMessage'
+                    json_equals: {"customerId": "0199a1b2-0000-7000-8000-000000000001", "email": "a@example.com"}
+                -   metadata_equals:
+                        type: 'App\Message\WelcomeCustomerMessage'
+                    json_equals: {"customerId": "0199a1b2-0000-7000-8000-000000000001"}
+
+    -   name: update emits one envelope
+        target_processors: '/pipeline/processors'
+        input_batch:
+            -   content: '{"before":null,"after":{"id":"0199a1b2-0000-7000-8000-000000000001","email":"b@example.com"},"source":{"name":"app","schema":"public","table":"customer"},"op":"u"}'
+        output_batches:
+            -   -   metadata_equals:
+                        type: 'App\Message\CustomerChangedMessage'
+                    json_equals: {"customerId": "0199a1b2-0000-7000-8000-000000000001", "email": "b@example.com"}
+
+    -   name: delete is dropped
+        target_processors: '/pipeline/processors'
+        input_batch:
+            -   content: '{"before":{"id":"0199a1b2-0000-7000-8000-000000000001"},"after":null,"source":{"name":"app","schema":"public","table":"customer"},"op":"d"}'
+        output_batches: []
+
+    -   name: other source is dropped
+        target_processors: '/pipeline/processors'
+        input_batch:
+            -   content: '{"before":null,"after":{"id":"x"},"source":{"name":"other","schema":"public","table":"customer"},"op":"c"}'
+        output_batches: []
+
+    -   name: tombstone is dropped
+        target_processors: '/pipeline/processors'
+        input_batch:
+            -   content: ''
+        output_batches: []

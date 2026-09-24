@@ -1,0 +1,63 @@
+input:
+    consume_kafka:
+        topics:
+            - '${KAFKA_APP_TOPICS:app.public.customer}'
+        # Consumer group mới không đọc lại cả retention, vì message có side effect.
+        # Topic phải có trước khi pipeline chạy, không thì event đầu tiên bị bỏ qua:
+        # service `kafka-init` trong compose.yml lo việc đó.
+        start_offset: latest
+
+pipeline:
+    # 1 thread để giữ thứ tự. Mọi bảng trên cùng topic chia chung một thứ tự.
+    threads: 1
+    processors:
+        # Guard nguồn PHẢI đứng đầu. `.or("")` đẩy record rỗng hoặc không phải JSON
+        # (tombstone) vào nhánh drop; đưa switch theo bảng lên trước thì nó lỗi
+        # "unable to reference message as structured".
+        -   switch:
+                -   check: >-
+                        this.source.name.or("") != "app" ||
+                        this.source.schema.or("") != "public"
+                    processors:
+                        -   mapping: 'root = deleted()'
+
+        -   switch:
+                -   check: 'this.source.table == "customer"'
+                    processors:
+                        -   resource: 'processor_customer'
+                -   processors:
+                        -   mapping: 'root = deleted()'
+
+        -   unarchive:
+                format: json_array
+
+        -   mapping: |
+                meta = deleted()
+                meta type = this.type
+                root = this.body
+
+        -   switch:
+                -   check: errored()
+                    processors:
+                        -   log:
+                                level: ERROR
+                                message: 'CDC event parked: ${! error() } | ${! content() }'
+
+# Event lỗi mapping: log ERROR rồi drop, để một event hỏng vĩnh viễn không giữ offset
+# mãi mãi. Chỉ phần publish AMQP được retry vô hạn, để RabbitMQ down không làm mất
+# message. Muốn giữ lại event lỗi thì thay `drop: {}` bằng output ghi vào topic DLQ.
+output:
+    switch:
+        cases:
+            -   check: errored()
+                output:
+                    drop: {}
+            -   output:
+                    retry:
+                        max_retries: 0
+                        output:
+                            resource: 'output_app_messenger'
+
+logger:
+    level: '${LOG_LEVEL:INFO}'
+    format: json

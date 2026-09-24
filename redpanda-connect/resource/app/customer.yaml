@@ -1,0 +1,46 @@
+# Hợp đồng với PHP: `type` là FQCN của message, key trong `body` phải trùng TÊN THAM SỐ
+# constructor. tests/Messenger/CdcContractTest.php decode từng output của
+# app_benthos_test.yaml bằng serializer thật để chặn lệch.
+#
+# Một event có thể sinh nhiều envelope: `c` sinh 2, `u` sinh 1, còn `d` và snapshot `r` bị drop.
+processor_resources:
+    -   label: processor_customer
+        switch:
+            -   check: 'this.op == "c"'
+                processors:
+                    -   mapping: |
+                            root = [
+                                {
+                                    "type": "App\\Message\\CustomerChangedMessage",
+                                    "body": {
+                                        "customerId": this.after.id.string(),
+                                        "email": this.after.email.or(null)
+                                    }
+                                },
+                                {
+                                    "type": "App\\Message\\WelcomeCustomerMessage",
+                                    "body": {
+                                        "customerId": this.after.id.string()
+                                    }
+                                }
+                            ]
+            -   check: 'this.op == "u"'
+                processors:
+                    -   mapping: |
+                            root = [
+                                {
+                                    "type": "App\\Message\\CustomerChangedMessage",
+                                    "body": {
+                                        "customerId": this.after.id.string(),
+                                        "email": this.after.email.or(null)
+                                    }
+                                }
+                            ]
+            -   processors:
+                    -   mapping: 'root = deleted()'
+
+output_resources:
+    -   label: output_app_messenger
+        publish_messenger:
+            label: app_publish
+            transport: cdc

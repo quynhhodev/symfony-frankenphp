@@ -12,3 +12,8 @@
 ###> secrets ###
 devops/argocd/git-credentials-secret.yaml
 ###< secrets ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###

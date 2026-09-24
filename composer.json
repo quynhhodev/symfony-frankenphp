@@ -12,15 +12,20 @@
         "doctrine/orm": "^3.5",
         "symfony/amqp-messenger": "7.3.*",
         "symfony/console": "7.3.*",
+        "symfony/doctrine-messenger": "7.3.*",
         "symfony/dotenv": "7.3.*",
         "symfony/flex": "^2.10",
         "symfony/framework-bundle": "7.3.*",
         "symfony/http-client": "7.3.*",
         "symfony/messenger": "7.3.*",
+        "symfony/property-access": "7.3.*",
         "symfony/runtime": "7.3.*",
+        "symfony/serializer": "7.3.*",
+        "symfony/uid": "7.3.*",
         "symfony/yaml": "7.3.*"
     },
     "require-dev": {
+        "phpunit/phpunit": "^10.5",
         "symfony/maker-bundle": "^1.64"
     },
     "config": {
