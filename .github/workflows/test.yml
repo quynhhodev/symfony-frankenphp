@@ -37,6 +37,21 @@ jobs:
 
           echo "OK: password khớp ở cả hai nơi."
 
+      # Unit test Bloblang của pipeline CDC. Không cần Kafka hay RabbitMQ.
+      # `lint -r` không expand glob (khác `run`/`test`), nên phải liệt kê từng file resource.
+      - name: Redpanda Connect lint + test
+        run: |
+          set -euo pipefail
+          rpc() {
+            docker run --rm -v "$PWD:/w" -w /w docker.redpanda.com/redpandadata/connect:4.67.5 "$@"
+          }
+          rpc lint -t './redpanda-connect/template/*.yaml' \
+            $(printf -- '-r %s ' redpanda-connect/resource/app/*.yaml) \
+            ./redpanda-connect/app.yaml
+          rpc test -t './redpanda-connect/template/*.yaml' \
+            -r './redpanda-connect/resource/app/*.yaml' \
+            ./redpanda-connect/app.yaml
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Start services
@@ -44,6 +59,10 @@ jobs:
 
       - name: Install dependencies
         run: docker compose -f compose.yml exec -T apache composer install --no-interaction --no-progress --optimize-autoloader
+
+      # Có CdcContractTest: body mà pipeline CDC sinh ra phải decode được thành đúng message.
+      - name: PHPUnit
+        run: docker compose -f compose.yml exec -T apache vendor/bin/phpunit
 
       - name: Run migrations
         run: docker compose -f compose.yml exec -T apache php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration

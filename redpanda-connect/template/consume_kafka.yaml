@@ -1,0 +1,35 @@
+name: consume_kafka
+type: input
+
+fields:
+    -   name: topics
+        type: string
+        kind: list
+        advanced: true
+    # Dùng `start_offset`, KHÔNG dùng `start_from_oldest`: field đó đã deprecated và
+    # xung đột với `start_offset`. `lint` không bắt được, chỉ lúc input khởi động mới báo.
+    -   name: start_offset
+        type: string
+        default: earliest
+        advanced: true
+
+mapping: |
+    root.redpanda = {
+        "seed_brokers": [
+            env("KAFKA_BOOTSTRAP").or("kafka:9092"),
+        ],
+        "tls": {
+            "enabled": env("KAFKA_ENABLED_TLS").or("false").bool(),
+            "skip_cert_verify": true,
+        },
+        "consumer_group": env("KAFKA_CONSUMER_GROUP").or("app.cdc"),
+        "sasl": [
+            {
+                "mechanism": env("KAFKA_SASL_MECHANISM").or("none"),
+                "username": env("KAFKA_USERNAME").or("kafka"),
+                "password": env("KAFKA_PASSWORD").or("kafka")
+            }
+        ],
+        "topics": this.topics,
+        "start_offset": this.start_offset
+    }

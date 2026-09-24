@@ -35,6 +35,20 @@
             "migrations/.gitignore"
         ]
     },
+    "phpunit/phpunit": {
+        "version": "10.5",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "10.0",
+            "ref": "bb22cf8d8c554a623b427d5f3416b538f5525233"
+        },
+        "files": [
+            ".env.test",
+            "phpunit.dist.xml",
+            "tests/bootstrap.php"
+        ]
+    },
     "symfony/console": {
         "version": "7.3",
         "recipe": {
@@ -101,6 +115,18 @@
             "config/packages/messenger.yaml"
         ]
     },
+    "symfony/property-info": {
+        "version": "7.3",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "7.3",
+            "ref": "dae70df71978ae9226ae915ffd5fad817f5ca1f7"
+        },
+        "files": [
+            "config/packages/property_info.yaml"
+        ]
+    },
     "symfony/routing": {
         "version": "7.3",
         "recipe": {
@@ -113,5 +139,14 @@
             "config/packages/routing.yaml",
             "config/routes.yaml"
         ]
+    },
+    "symfony/uid": {
+        "version": "7.3",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "7.0",
+            "ref": "0df5844274d871b37fc3816c57a768ffc60a43a5"
+        }
     }
 }

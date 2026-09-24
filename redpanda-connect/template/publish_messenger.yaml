@@ -1,0 +1,56 @@
+name: publish_messenger
+type: output
+
+fields:
+    -   name: transport
+        type: string
+    -   name: label
+        type: string
+        default: ""
+
+# Tên exchange suy ra từ MESSENGER_TRANSPORT_DSN_PREFIX giống hệt cách Symfony làm:
+# prefix `…/%2f/app_` + transport `cdc` = exchange `app_cdc`. Hai bên không hardcode
+# gì nên không thể lệch nhau.
+#
+# `exchange_declare: false` CÓ CHỦ ĐÍCH: exchange, queue và binding do Symfony tạo. Để
+# redpanda tạo trước thì message rơi vào một fanout chưa bind queue nào và bị vứt âm
+# thầm. Tắt declare thì exchange thiếu là lỗi rõ ràng, retry giữ offset cho tới khi
+# worker dựng xong.
+#
+# Metadata của message thành header AMQP, nên pipeline phải xoá `kafka_*` trước khi tới đây.
+mapping: |
+    let dsn_prefix = env("MESSENGER_TRANSPORT_DSN_PREFIX").or("amqp://guest:guest@rabbitmq:5672/%2f/app_")
+    let amqp_url = env("REDPANDA_AMQP_URL").or($dsn_prefix.re_replace_all("/[^/]*$", ""))
+    let exchange = $dsn_prefix.split("/").index(-1) + this.transport
+
+    root.label = this.label
+    root.fallback = [
+        {
+            "label": this.label + "_retry",
+            "retry": {
+                "max_retries": 10,
+                "backoff": {
+                    "initial_interval": "500ms",
+                    "max_interval": "5s",
+                },
+                "output": {
+                    "label": this.label,
+                    "amqp_0_9": {
+                        "urls": [$amqp_url],
+                        "exchange": $exchange,
+                        "exchange_declare": {
+                            "enabled": false,
+                        },
+                        "key": "",
+                        "content_type": "application/json",
+                        "persistent": true,
+                        "max_in_flight": 1,
+                    }
+                }
+            }
+        },
+        {
+            "label": this.label + "_reject",
+            "reject": "[" + this.label + "] AMQP publish failed | Data: ${! json() }"
+        }
+    ]

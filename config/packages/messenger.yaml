@@ -14,6 +14,14 @@ framework:
             # async: '%env(MESSENGER_TRANSPORT_DSN)%'
             failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
+            # Transport nhận message CDC do redpanda-connect publish (redpanda-connect/).
+            # Symfony tạo exchange fanout + queue `app_cdc` theo DSN; redpanda suy ra đúng
+            # tên đó từ cùng biến prefix nên hai bên không thể lệch.
+            # Serializer JSON là BẮT BUỘC: redpanda không tạo được payload PhpSerializer.
+            # CỐ Ý không có routing nào trỏ vào `cdc`: PHP không bao giờ gửi vào đây.
+            cdc:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN_PREFIX)%cdc'
+                serializer: messenger.transport.symfony_serializer
 
         routing:
             # Route your messages to the transports

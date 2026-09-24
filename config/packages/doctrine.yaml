@@ -3,20 +3,20 @@ doctrine:
         url: '%env(resolve:DATABASE_URL)%'
 
         # Database này dùng chung với các tool ngoài Symfony: Hasura tự tạo
-        # schema hdb_catalog, sắp tới sẽ có thêm Debezium. Doctrine chỉ chịu
+        # schema hdb_catalog; Debezium (profile `cdc`) chỉ tạo publication và
+        # replication slot, không có bảng nào. Doctrine chỉ chịu
         # trách nhiệm cho search_path — mọi schema riêng của tool khác đều bỏ qua.
         # Không lọc thì schema:validate coi chúng là drift, và migrations:diff
         # sẽ sinh lệnh DROP chúng (đó chính là Version20260414082747 đã bị xoá).
         # Quy ước: tool mới phải nằm trong schema riêng, không thả bảng vào public.
         #
-        # `messenger_messages` là ngoại lệ bắt buộc: failure_transport `failed` là
-        # doctrine:// và Messenger tự đẻ bảng đó vào public qua auto_setup, không
-        # migration nào tạo. Doctrine không có entity nào map tới nó, nên không loại
-        # ra thì schema:validate (chạy ở test.yml) báo đỏ và migrations:diff sinh
-        # `DROP TABLE messenger_messages` — xoá sạch message chết. Đúng cái bẫy
-        # hdb_catalog đã dính, chỉ khác là lần này bảng không nằm trong schema riêng
-        # được vì Messenger không cho chọn schema.
-        schema_filter: '~^(?!.*\.)(?!messenger_messages)~'
+        # `messenger_messages` (bảng của failure_transport `failed`) do MIGRATION tạo,
+        # KHÔNG được loại ở đây. symfony/doctrine-messenger tự đưa bảng này vào schema
+        # mà Doctrine mong đợi. Còn loại nó ra thì hai tool bất đồng: schema:validate
+        # (test.yml) vẫn đòi bảng phải có, nhưng migrations:diff lọc mất nên không bao
+        # giờ sinh lệnh tạo bảng. Kết quả là CI đỏ trên mọi DB mới.
+        # Gỡ doctrine-messenger thì migrations:diff sẽ lại sinh `DROP TABLE messenger_messages`.
+        schema_filter: '~^(?!.*\.)~'
 
         # IMPORTANT: You MUST configure your server version,
         # either here or in the DATABASE_URL env var (see .env file)

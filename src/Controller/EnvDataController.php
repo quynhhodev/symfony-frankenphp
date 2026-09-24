@@ -19,7 +19,7 @@ final class EnvDataController extends AbstractController
         $bus->dispatch(new AMessage());
 
         $user = new User();
-        $user->setName('John Doe');
+        $user->setName('John Doeee');
         $user->setAge(25);
         $user->setRecidentId(random_int(100000, 999999));
 
