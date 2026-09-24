@@ -38,7 +38,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: worker
-          image: devho/franken-php:2415d963452f1d49e47b6f825a54150465bca133
+          image: devho/franken-php:02c9b05d0b7411066ba087be7bb693ee271f6083
           imagePullPolicy: Always
           workingDir: /app/public
           # --time-limit=3600: worker tự thoát mỗi giờ để k8s dựng lại. BẮT BUỘC —
