@@ -93,7 +93,15 @@ services:
     restart: unless-stopped
 
   rabbitmq:
-    image: rabbitmq:management
+    # PIN 3.13 CÓ CHỦ ĐÍCH. Đừng trả về tag trôi `rabbitmq:management`, vì tag đó đã
+    # lặng lẽ nhảy lên 4.x.
+    # - k8s chạy 3.13 (devops/deployment/rabbitmq-statefulset.yaml). Local phải cùng
+    #   major version thì mới test được đúng thứ sẽ chạy trên cluster.
+    # - Stack gci cũng publish localhost:15672 với 3.13. Hai version khác nhau trên
+    #   CÙNG origin thì UI trắng trang: 3.13 không gửi Cache-Control nên trình duyệt
+    #   giữ JS cũ hàng chục ngày, rồi đem chạy với index.html của 4.x.
+    # Nâng version thì nâng k8s cùng lúc.
+    image: rabbitmq:3.13-management
     ports:
       - target: 5672
         published: 5672
