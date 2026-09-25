@@ -718,4 +718,17 @@ docker compose logs -f worker-cdc          # "customer changed" + "welcome custo
 - **`SerializedMessageStamp`.** `decode()` gắn stamp này, nên `encode()` trả lại nguyên văn body gốc. Contract test phải bỏ stamp trước khi encode, không thì assertion round-trip luôn xanh.
 - **Replication slot giữ WAL khi stack `cdc` tắt.** `max_slot_wal_keep_size=1GB` đặt trần cho lượng WAL này. Vượt trần thì slot bị huỷ, và phải drop slot rồi snapshot lại.
 
+### UI giám sát (profile `cdc`)
+
+| UI | URL | Xem được gì |
+|---|---|---|
+| Redpanda Console v3.12.0 | http://localhost:8091 | Status từng task của connector `app` (có Restart/Pause). Consumer group `app.cdc`: `Stable` + 1 member là redpanda-connect còn sống; `Empty` là đã chết; lag không giảm là đang kẹt. Đọc được message trong topic. |
+| Debezium UI 2.5 (**archived**) | http://localhost:8889 | Danh sách connector và task |
+
+Đã thử bằng cách làm hỏng từng thành phần: task `FAILED`, redpanda-connect chết. Cả hai UI đều báo được, kèm các bẫy sau:
+- **Trang danh sách vẫn báo connector xanh "Running" khi task đã `FAILED`.** Phải nhìn cột Tasks: Console hiện ⚠️ `0 / 1`, Debezium UI hiện `FAILED : 1`. Trang chi tiết connector của Console thì báo rõ "Unhealthy".
+- **Console v3 đổi khoá `connect:` thành `kafkaConnect:`.** Env kiểu v2 (`CONNECT_ENABLED`, `CONNECT_CLUSTERS_*`) bị bỏ qua mà không báo lỗi: đã chạy thử và nhận `isConfigured: false`. Stack gci đang dùng đúng kiểu cấu hình này với `console:latest`. Image trên máy được build ngày 16/09/2026, trùng ngày ra v3.12.0, nên nhiều khả năng tab Connect bên đó đang trống. Chưa kiểm trực tiếp được vì lúc đó Console của gci không chạy.
+- **Debezium UI đọc `KAFKA_CONNECT_URIS`, không phải `KAFKA_CONNECT_CLUSTERS` như README ghi.** Sai tên thì nó lặng lẽ gọi `localhost:8083`. UI này cũng cần `ENABLE_DEBEZIUM_KC_REST_EXTENSION=true` bên service `connect`.
+- **Port cố ý khác 8090/8888 của stack gci.** Hai version khác nhau trên cùng một origin thì trình duyệt trộn cache, giống vụ RabbitMQ UI trắng trang.
+
 Chưa làm: manifest k8s (`devops/`) cho Kafka, Debezium, redpanda-connect và worker `cdc`.

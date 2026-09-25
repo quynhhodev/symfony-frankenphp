@@ -127,15 +127,18 @@ services:
   # Blueprint và các bẫy: cdc-debezium-redpanda-rabbitmq.md
   #
   # Nằm trong profile riêng vì hai lý do. CI chạy `compose up --wait` lúc vendor/ chưa
-  # có, nên worker sẽ crash. Và Kafka + Debezium tốn khoảng 1GB RAM, phần lớn thời
-  # gian không ai cần.
+  # có, nên worker sẽ crash. Và cả profile tốn khoảng 1.1GB RAM (đo 25/09/2026: connect
+  # ~420MB, kafka ~360MB, debezium-ui ~200MB, phần còn lại dưới 50MB mỗi service),
+  # trong khi phần lớn thời gian không ai cần tới.
   #
   # Thứ tự khởi động là BẮT BUỘC, và được ép bằng depends_on chứ không nhờ người nhớ:
   #   migrate ──► register-connector   (bảng phải có trước publication)
   #   kafka-init ──► redpanda-connect  (topic phải có trước consumer `latest`)
   #
-  # Không service nào publish port: 9092 và các port khác của host thường đã có
-  # stack khác giữ. Mọi client đều nằm trong network của compose.
+  # Chỉ hai UI publish port ra host: 8091 (Redpanda Console) và 8889 (Debezium UI),
+  # cố ý khác 8090/8888 của stack gci. Các service còn lại không publish, vì 9092 và
+  # các port khác của host thường đã có stack khác giữ. Mọi client đều nằm trong
+  # network của compose.
   # ---------------------------------------------------------------------------
 
   # Bảng `customer` phải có TRƯỚC khi đăng ký connector. Publication `filtered` không
@@ -194,6 +197,8 @@ services:
       OFFSET_STORAGE_TOPIC: connect_offsets
       STATUS_STORAGE_TOPIC: connect_statuses
       HEAP_OPTS: -Xms256m -Xmx512m
+      # REST extension của Debezium. Debezium UI (bên dưới) cần nó để liệt kê và validate connector.
+      ENABLE_DEBEZIUM_KC_REST_EXTENSION: "true"
       # Connector JSON viết `${env:POSTGRES_PASSWORD}` thay vì chép password vào file,
       # nhờ EnvVarConfigProvider. Default ở đây phải KHỚP service `database`, cùng lý do như hasura.
       CONNECT_CONFIG_PROVIDERS: env
@@ -266,6 +271,54 @@ services:
       rabbitmq:
         condition: service_healthy
       worker-cdc:
+        condition: service_started
+
+  # UI để xem pipeline còn sống hay đã chết:
+  # - Kafka Connect: status TỪNG TASK của connector `app` (restart/pause được ngay trên UI).
+  # - Consumer group `app.cdc`: có member nghĩa là redpanda-connect còn sống; lag không
+  #   giảm nghĩa là đang kẹt (ví dụ RabbitMQ chết).
+  # - Topic: đọc được JSON Debezium thô.
+  # Console không nhìn vào được bên trong redpanda-connect, chỉ suy ra qua consumer group.
+  #
+  # BẪY: ở trang danh sách, State của connector vẫn xanh "Running" khi task đã FAILED.
+  # Phải nhìn cột Tasks (⚠️ 0 / 1), hoặc mở trang connector (sẽ hiện "Unhealthy").
+  #
+  # CỐ Ý không chờ `connect`, vì UI giám sát phải lên được cả khi connect đang chết.
+  # Dòng WARN "connect cluster is not reachable" lúc khởi động là vô hại: Console hỏi
+  # lại connect ở mỗi request.
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v3.12.0
+    profiles: [cdc]
+    environment:
+      CONFIG_FILEPATH: /etc/redpanda-console/config.yml
+    volumes:
+      - ./docker/redpanda-console/config.yml:/etc/redpanda-console/config.yml:ro
+    ports:
+      - target: 8080
+        published: 8091
+        protocol: tcp
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # Debezium UI ĐÃ ARCHIVE từ 17/09/2025, 2.5 là bản cuối và sẽ không có bản vá nào nữa.
+  # Phần xem status thì Redpanda Console ở trên cũng làm được.
+  # Cần ENABLE_DEBEZIUM_KC_REST_EXTENSION bên service `connect`.
+  debezium-ui:
+    image: quay.io/debezium/debezium-ui:2.5
+    profiles: [cdc]
+    environment:
+      # KAFKA_CONNECT_URIS, không phải KAFKA_CONNECT_CLUSTERS như README ghi: backend
+      # trong image đọc `kafka.connect.uris`. Sai tên thì nó lặng lẽ gọi localhost:8083.
+      KAFKA_CONNECT_URIS: http://connect:8083
+    ports:
+      - target: 8080
+        published: 8889
+        protocol: tcp
+    # Chỉ chờ connect khởi động, không chờ healthy, cùng lý do như redpanda-console. Khi
+    # connect chết, UI vẫn mở được và báo rõ "Could not connect to Kafka Connect".
+    depends_on:
+      connect:
         condition: service_started
 
 volumes:

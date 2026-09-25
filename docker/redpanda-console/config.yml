@@ -1,0 +1,13 @@
+# Cấu hình Redpanda Console v3 (service `redpanda-console` trong compose.yml).
+#
+# Khoá là `kafkaConnect:`, KHÔNG phải `connect:`: v3 đã đổi tên để khỏi nhầm với
+# Redpanda Connect. Env var kiểu v2 (CONNECT_ENABLED, CONNECT_CLUSTERS_*) không còn tác dụng.
+kafka:
+  brokers:
+    - kafka:9092
+
+kafkaConnect:
+  enabled: true
+  clusters:
+    - name: debezium
+      url: http://connect:8083
