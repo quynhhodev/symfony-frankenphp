@@ -21,7 +21,15 @@ env:
   repository: devho/franken-php
 
 jobs:
+  # Cổng: test đỏ thì không build, không commit tag, ArgoCD không có gì để rollout.
+  # Trước đây hai workflow chạy song song, test đỏ mà image vẫn lên cluster.
+  tests:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
   bake:
+    needs: tests
     runs-on: ubuntu-latest
     permissions:
       # cần quyền ghi để commit tag vừa build ngược lại manifest

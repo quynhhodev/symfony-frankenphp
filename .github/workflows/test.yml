@@ -1,10 +1,23 @@
 name: Tests
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # do-ci.yml gọi file này làm cổng: push code vào main chỉ được build và deploy
+  # khi test xanh.
+  workflow_call:
+  # Push chỉ đụng devops/ thì do-ci.yml bỏ qua (paths-ignore), nên tự kích ở đây để
+  # guard password RabbitMQ vẫn chạy — đúng phần bù của filter bên đó. ArgoCD apply
+  # devops/ ngay khi có commit, nên với loại push này test chỉ báo lỗi, không chặn được.
+  #
+  # Push đụng cả devops/ lẫn code thì test chạy HAI lần (ở đây và qua do-ci.yml). Cố ý
+  # chấp nhận. Bỏ trùng nghĩa là bỏ paths-ignore của do-ci.yml rồi tự dò file đổi trong
+  # job, và khi đó push chỉ đụng devops/ sẽ vào nhóm concurrency deploy-main, huỷ ngang
+  # bản build code đang chạy.
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'devops/**'
 
 jobs:
   tests:
