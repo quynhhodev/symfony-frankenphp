@@ -86,15 +86,23 @@ spec:
             cpu: "500m"
         ports:
         - containerPort: 80
+        # Probe gọi route của src/Controller/HealthController.php. tcpSocket trước đây chỉ
+        # biết cổng 80 mở, nên Symfony lỗi 500 mà pod vẫn Ready.
+        #
         # Chờ container khởi động xong (tối đa 60s) trước khi bật liveness/readiness
         startupProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/live
             port: 80
           periodSeconds: 2
           failureThreshold: 30
         # Kubernetes chỉ route traffic vào pod khi readiness pass
+        # /health/ready có query DB: DB chết thì cả 2 pod cùng NotReady và ingress trả
+        # 503 cho mọi route, kể cả route không cần DB. Chấp nhận, vì app gần như route
+        # nào cũng chạm DB.
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/ready
             port: 80
           initialDelaySeconds: 5
           periodSeconds: 10
@@ -102,7 +110,8 @@ spec:
           failureThreshold: 3
         # Nếu liveness fail liên tục, Kubernetes sẽ restart container
         livenessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/live
             port: 80
           initialDelaySeconds: 15
           periodSeconds: 20
