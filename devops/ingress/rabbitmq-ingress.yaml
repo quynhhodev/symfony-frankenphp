@@ -3,7 +3,7 @@
 # KHÁC với devops/argocd/argocd-ingress.yaml: file này nằm ngoài argocd/ nên ArgoCD
 # quản nó bình thường — merge là có, không phải apply tay.
 #
-# Vào bằng: http://rabbitmq.local:32723   (32723 = NodePort http của ingress-nginx)
+# Vào bằng: http://rabbitmq.local:32723   (32723 = NodePort http của Traefik)
 # Thêm vào /etc/hosts:  10.62.164.198 rabbitmq.local
 # (IP nào của node cũng được — 10.62.164.150 / .198 / .61 — NodePort mở trên mọi node.)
 #
@@ -16,7 +16,7 @@
 # thì file này thành cửa trước bỏ ngỏ: lúc đó phải thêm auth ở tầng ingress và xoay
 # password sang giá trị thật.
 #
-# Không expose cổng 5672 (AMQP) qua ingress: ingress-nginx là HTTP reverse proxy,
+# Không expose cổng 5672 (AMQP) qua ingress: ingress Traefik ở đây chỉ route HTTP,
 # AMQP là giao thức nhị phân riêng. App nói chuyện với broker qua Service nội bộ.
 ---
 apiVersion: networking.k8s.io/v1
@@ -24,7 +24,7 @@ kind: Ingress
 metadata:
   name: rabbitmq-ingress
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
     - host: rabbitmq.local
       http:

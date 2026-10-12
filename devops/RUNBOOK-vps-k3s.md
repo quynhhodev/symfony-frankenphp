@@ -4,7 +4,7 @@
 
 ## 0. Vì sao k3s chứ không phải kubeadm
 
-Cluster multipass hiện tại (kubeadm) cần **6 bước** bootstrap. k3s gói sẵn 3 trong số đó:
+Cluster multipass hiện tại (kubeadm) cần **6 bước** bootstrap. k3s gói sẵn 4 trong số đó:
 
 | Thành phần | kubeadm | k3s |
 |---|---|---|
@@ -13,9 +13,9 @@ Cluster multipass hiện tại (kubeadm) cần **6 bước** bootstrap. k3s gói
 | CoreDNS | có sẵn | có sẵn |
 | StorageClass | tự cài local-path-provisioner | **có sẵn, tên đúng là `local-path`** |
 | LoadBalancer | không có | có sẵn (klipper-lb) |
-| Ingress controller | tự cài | có traefik — **phải tắt** |
+| Ingress controller | tự cài (Traefik, xem `MIGRATION-traefik.md`) | **có sẵn Traefik, dùng luôn** |
 
-Còn **4 bước**.
+Còn **3 bước**.
 
 ### Manifest hiện tại chạy được ngay, không sửa gì
 
@@ -23,11 +23,12 @@ Còn **4 bước**.
 
 - `storageClassName: local-path` ở cả hai StatefulSet → **trùng đúng tên** provisioner k3s cho sẵn
 - Không có `nodeSelector`, `affinity`, hay `topologySpreadConstraints` → một node chạy được
-- Cả 3 ingress khai `ingressClassName: nginx` → thoả sau bước 2 bên dưới
+- Cả 3 ingress khai `ingressClassName: traefik` → **trùng đúng tên** IngressClass k3s cho sẵn,
+  CRD `Middleware` (`traefik.io/v1alpha1`) của rate limit cũng có sẵn
 - `replicas: 2` của frankenphp vẫn chạy trên một node, nhưng **không còn ý nghĩa HA** — hai pod chết cùng lúc khi VPS chết
 
-Đây là lý do phải **tắt traefik**: giữ traefik thì phải sửa `ingressClassName` ở cả 3 file,
-và `argocd-ingress.yaml` còn phụ thuộc hành vi riêng của nginx.
+Trước đây runbook tắt Traefik để dùng ingress-nginx. ingress-nginx đã ngừng bảo trì từ
+3/2026 (không còn vá bảo mật), nên giờ manifest chuyển sang Traefik và dùng luôn bản k3s cho sẵn.
 
 ---
 
@@ -56,33 +57,29 @@ ufw default deny incoming && ufw allow 22,80,443/tcp && ufw enable
 
 ---
 
-## 2. Bootstrap — 4 bước
+## 2. Bootstrap — 3 bước
 
 ```bash
-# 1) k3s, tắt traefik để dùng ingress-nginx
+# 1) k3s, GIỮ Traefik mặc định. klipper-lb bind Service LoadBalancer của Traefik
+#    thẳng :80/:443 lên host, nên không có NodePort 32723 như ở multipass.
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.36.3+k3s1" sh -s - \
-  --disable=traefik \
   --write-kubeconfig-mode=644
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl get nodes          # phải Ready trước khi đi tiếp
+kubectl get ingressclass   # phải có `traefik`
 
-# 2) ingress-nginx — provider `cloud` tạo Service type LoadBalancer,
-#    klipper-lb của k3s bind thẳng :80/:443 lên host. Không còn NodePort 32723.
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.1/deploy/static/provider/cloud/deploy.yaml
-kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=180s
-
-# 3) ArgoCD — cùng version đang chạy ở multipass
+# 2) ArgoCD — cùng version đang chạy ở multipass
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.1/manifests/install.yaml
 kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
 
-# 4) giao repo cho ArgoCD
+# 3) giao repo cho ArgoCD
 git clone https://github.com/quynhhodev/symfony-frankenphp.git
 kubectl apply -n argocd -f symfony-frankenphp/devops/argocd/argocd-application.yaml
 ```
 
-**Sau bước 4 là hết phần tay.** ArgoCD kéo `main` và tự dựng postgres, rabbitmq,
+**Sau bước 3 là hết phần tay.** ArgoCD kéo `main` và tự dựng postgres, rabbitmq,
 frankenphp, messenger-worker, Reloader, ingress, rồi chạy Job migration PostSync.
 
 > `devops/` có `recurse: true` nhưng ArgoCD chỉ đọc `.yaml`/`.yml`/`.json` — file `.md`

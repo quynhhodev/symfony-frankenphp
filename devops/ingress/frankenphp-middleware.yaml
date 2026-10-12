@@ -1,0 +1,37 @@
+# Rate limit cho frankenphp-ingress, chặn ở Traefik trước khi request chiếm thread PHP.
+# Ingress gắn hai middleware này qua annotation `router.middlewares`, tên ở đó có dạng
+# `<namespace>-<tên>@kubernetescrd`. Đổi namespace hay tên ở đây mà quên sửa annotation
+# thì Traefik bỏ route và chỉ báo "middleware not found" trong log, `kubectl get ingress`
+# vẫn trông bình thường.
+#
+# Cả hai trả 429 khi vượt ngưỡng.
+#
+# BẪY: "IP client" là IP mà Traefik nhìn thấy. Đi qua NodePort bị SNAT, hoặc qua
+# Cloudflare mà chưa cấu hình forwardedHeaders.trustedIPs, thì mọi người chung MỘT IP,
+# tức chung một bucket: 10 req/s cho cả thiên hạ. Xem access log trước khi tin limit.
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: frankenphp-ratelimit
+  namespace: default
+spec:
+  rateLimit:
+    # 10 req/s mỗi IP, cho dồn tới 50. Mặc định đã đếm theo IP client.
+    average: 10
+    period: 1s
+    burst: 50
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: frankenphp-inflight
+  namespace: default
+spec:
+  inFlightReq:
+    # Tối đa 20 request đang xử lý cùng lúc mỗi IP.
+    amount: 20
+    # BẮT BUỘC khai: mặc định inFlightReq gom theo Host của request, tức mọi người
+    # dùng chung 20 slot. ipStrategy rỗng = gom theo IP client.
+    sourceCriterion:
+      ipStrategy: {}
