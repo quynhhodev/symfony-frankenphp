@@ -4,7 +4,7 @@
 # ArgoCD không tự quản chính nó. Apply tay:
 #   kubectl --context multipass apply -f devops/argocd/argocd-ingress.yaml
 #
-# Vào bằng: http://argocd.local:32723  (32723 = NodePort http của ingress-nginx)
+# Vào bằng: http://argocd.local:32723  (32723 = NodePort http của Traefik)
 # Cần thêm vào /etc/hosts:  10.62.164.198 argocd.local
 # (đó là IP của k8s-worker1, nhưng NodePort mở trên MỌI node — 10.62.164.150
 #  hay 10.62.164.61 đều vào được. Node nào chết thì trỏ sang node khác.)
@@ -32,7 +32,7 @@ metadata:
   name: argocd-ingress
   namespace: argocd
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
     - host: argocd.local
       http:
