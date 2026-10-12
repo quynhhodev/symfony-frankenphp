@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: frankenphp
-        image: devho/franken-php:c7674690f21ffa3cec0d141ed5cc881c316a4f42
+        image: devho/franken-php:73b92055537e2a4a93736cd15f5075538a9bc36b
         imagePullPolicy: Always
         env:
           - name: DB_HOST
