@@ -2,6 +2,19 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: frankenphp-ingress
+  # Rate limit theo IP client, chặn ở nginx trước khi request chiếm thread PHP.
+  # Mức thật: 10 req/s, burst 50 (limit-burst-multiplier mặc định = 5 × rps).
+  #
+  # Request bị chặn nhận 503 chứ KHÔNG phải 429: mã này chỉ đổi được bằng
+  # `limit-req-status-code` trong ConfigMap của controller, mà ConfigMap đó không
+  # nằm trong repo. Thấy 503 tăng vọt thì chưa chắc backend chết.
+  #
+  # BẪY: "IP client" là IP mà ingress-nginx nhìn thấy. Đi qua NodePort bị SNAT,
+  # hoặc qua Cloudflare mà chưa cấu hình real IP, thì mọi người chung MỘT IP, tức
+  # chung một bucket: 10 req/s cho cả thiên hạ. Xem log controller trước khi tin limit.
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
 
 spec:
   ingressClassName: nginx
