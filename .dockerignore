@@ -1,0 +1,36 @@
+# Build context chỉ cần những gì stage `prod` COPY vào (xem docker/frankenphp/Dockerfile).
+# Danh sách này giữ context nhỏ và chặn file nhạy cảm lọt vào image nếu sau này
+# có ai thêm `COPY . .`.
+
+# Git, IDE, công cụ
+.git
+.github
+.idea
+.claude
+.gitnexus
+.editorconfig
+.output.txt
+*.md
+
+# Dependency và cache sinh ra lúc chạy: image tự cài lại
+vendor
+var
+.phpunit.cache
+
+# Hạ tầng: manifest k8s (có secret.yaml), compose, config của Debezium/Redpanda
+devops
+docker
+compose*.yml
+redpanda-connect
+
+# Test
+tests
+phpunit.dist.xml
+phpunit.xml
+.env.test
+
+# Biến môi trường và secret riêng của từng máy
+.env.local
+.env.local.php
+.env.*.local
+config/secrets/*/*.decrypt.private.php
