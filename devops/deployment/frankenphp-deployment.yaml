@@ -84,8 +84,12 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+        # Probe và (sắp tới) Service trỏ cổng theo TÊN `http`, không theo số. Đổi số cổng
+        # sau này thì Service tự gửi đúng cổng của từng pod trong lúc rollout: pod cũ cổng
+        # cũ, pod mới cổng mới, không có khoảnh khắc nào request rơi vào cổng không ai nghe.
         ports:
-        - containerPort: 80
+        - name: http
+          containerPort: 80
         # Probe gọi route của src/Controller/HealthController.php. tcpSocket trước đây chỉ
         # biết cổng 80 mở, nên Symfony lỗi 500 mà pod vẫn Ready.
         #
@@ -93,7 +97,7 @@ spec:
         startupProbe:
           httpGet:
             path: /health/live
-            port: 80
+            port: http
           periodSeconds: 2
           failureThreshold: 30
         # Kubernetes chỉ route traffic vào pod khi readiness pass
@@ -103,7 +107,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /health/ready
-            port: 80
+            port: http
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 3
@@ -112,7 +116,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /health/live
-            port: 80
+            port: http
           initialDelaySeconds: 15
           periodSeconds: 20
           timeoutSeconds: 3
