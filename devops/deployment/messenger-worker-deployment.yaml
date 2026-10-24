@@ -36,10 +36,22 @@ spec:
       # chạy vài chục ms nên 30s dư sức. Handler nào chạy lâu hơn ngưỡng này thì
       # phải nâng số lên, không thì k8s SIGKILL giữa chừng và message quay lại queue.
       terminationGracePeriodSeconds: 30
+      # Cùng securityContext với frankenphp-deployment.yaml (lý do ghi ở đó). Process
+      # ở đây là `php`, không phải binary frankenphp, nên không cần NET_BIND_SERVICE.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: worker
           image: devho/franken-php:fca5981d8b623fdb1cd0bec459797cd8f86ecdd0
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           workingDir: /app/public
           # --time-limit=3600: worker tự thoát mỗi giờ để k8s dựng lại. BẮT BUỘC —
           #   process chạy dài giữ nguyên code cũ trong bộ nhớ, deploy image mới mà

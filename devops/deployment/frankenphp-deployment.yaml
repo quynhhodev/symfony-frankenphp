@@ -18,10 +18,30 @@ spec:
       labels:
         app: frankenphp
     spec:
+      # Đạt chuẩn Pod Security "restricted": lọt được vào container qua lỗ hổng PHP
+      # thì vẫn kẹt ở uid 1000, không leo quyền, không capability, syscall bị lọc.
+      #
+      # runAsUser khai bằng số vì `runAsNonRoot` chỉ kiểm tra được uid dạng số, mà
+      # image cũ (trước khi Dockerfile đổi sang `USER 1000:1000`) khai `USER app`.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: frankenphp
         image: devho/franken-php:fca5981d8b623fdb1cd0bec459797cd8f86ecdd0
         imagePullPolicy: Always
+        # NET_BIND_SERVICE không phải để mở cổng (app nghe 8080): image gốc gắn sẵn
+        # file capability đó lên binary frankenphp, thiếu nó trong bounding set thì
+        # kernel từ chối exec ("Operation not permitted", exit 126). Restricted cho
+        # phép thêm lại đúng một capability này.
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+            add: [NET_BIND_SERVICE]
         env:
           - name: DB_HOST
             valueFrom:
@@ -84,12 +104,13 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
-        # Probe và (sắp tới) Service trỏ cổng theo TÊN `http`, không theo số. Đổi số cổng
-        # sau này thì Service tự gửi đúng cổng của từng pod trong lúc rollout: pod cũ cổng
-        # cũ, pod mới cổng mới, không có khoảnh khắc nào request rơi vào cổng không ai nghe.
+        # Probe và Service trỏ cổng theo TÊN `http`, không theo số. Đổi số cổng thì
+        # Service tự gửi đúng cổng của từng pod trong lúc rollout: pod cũ cổng cũ, pod
+        # mới cổng mới, không có khoảnh khắc nào request rơi vào cổng không ai nghe.
         ports:
         - name: http
-          containerPort: 80
+          # Khớp SERVER_NAME trong ConfigMap frankenphp.
+          containerPort: 8080
         # Probe gọi route của src/Controller/HealthController.php. tcpSocket trước đây chỉ
         # biết cổng 80 mở, nên Symfony lỗi 500 mà pod vẫn Ready.
         #
