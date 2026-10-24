@@ -9,7 +9,7 @@ metadata:
     # /env/data 500 suốt 25 phút ngày 26/08/2026 mà không ai biết.
     reloader.stakater.com/auto: "true"
 spec:
-  replicas: 2
+  # Không khai `replicas`: số pod do HPA quyết định (devops/autoscaling/frankenphp-hpa.yaml).
   selector:
     matchLabels:
       app: frankenphp

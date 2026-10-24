@@ -1,0 +1,18 @@
+# Khi drain node (nâng cấp, khởi động lại máy), k8s chỉ được đuổi pod frankenphp nếu
+# sau đó vẫn còn ít nhất 1 pod. Không có PDB thì drain node worker đuổi cả 2 pod
+# cùng lúc và app tối đen tới khi pod mới lên.
+#
+# Chỉ chặn eviction chủ động (drain, autoscaler xoá node). Node chết đột ngột hay
+# `kubectl delete pod` thì PDB không can thiệp.
+#
+# Dùng minAvailable thay vì maxUnavailable: số pod do HPA quyết định (2–5), và "luôn
+# còn 1" đúng ở mọi mức scale.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frankenphp
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frankenphp

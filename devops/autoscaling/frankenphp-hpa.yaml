@@ -1,0 +1,31 @@
+# Tự scale frankenphp theo CPU, từ 2 tới 5 pod. Cần metrics-server, xem devops/HPA.md.
+#
+# Utilization tính trên `requests.cpu` của container (100m), nên 70% nghĩa là trung
+# bình mỗi pod dùng quá 70m thì thêm pod. Đổi requests trong
+# frankenphp-deployment.yaml là đổi luôn ngưỡng thật của HPA.
+#
+# Deployment KHÔNG khai `replicas` nữa: HPA là chủ duy nhất của số pod. Còn khai thì
+# mỗi lần ArgoCD sync lại kéo số pod về giá trị trong git, giành quyền với HPA giữa
+# lúc đang tải cao.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frankenphp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frankenphp
+  # Tối thiểu 2 để còn một pod phục vụ khi pod kia restart hoặc bị drain (đi cùng PDB).
+  minReplicas: 2
+  # Node worker có 3 CPU; 5 pod × 100m requests vẫn còn dư cho Postgres, RabbitMQ.
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  # Mặc định: scale up ngay, scale down chờ 5 phút CPU thấp liên tục. Giữ mặc định để
+  # tải dao động không làm pod bị tạo rồi xoá liên tục.
