@@ -5,6 +5,7 @@ x-php-cli: &php-cli
   build:
     context: .
     dockerfile: ./docker/frankenphp/Dockerfile
+    target: dev
   volumes:
     - ./:/app/public
   healthcheck:
@@ -15,6 +16,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/frankenphp/Dockerfile
+      # Stage cuối của Dockerfile là `prod` (cho CI); local cần stage `dev`.
+      target: dev
     ports:
       - target: 80
         published: 80
