@@ -36,6 +36,10 @@ FROM base AS dev
 FROM base AS prod
 
 ENV APP_ENV=prod
+# Cổng trên 1024: user thường mở được mà không cần capability nào, nên pod chạy
+# được với `capabilities.drop: [ALL]`. Service vẫn mở cổng 80 ra ngoài.
+ENV SERVER_NAME=:8080
+EXPOSE 8080
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Chỉ copy composer.* trước: sửa code mà dependency không đổi thì layer
@@ -63,9 +67,16 @@ COPY src src/
 RUN composer dump-autoload --no-dev --classmap-authoritative \
     && php bin/console cache:warmup
 
-# Chạy bằng user thường. setcap để vẫn bind được cổng 80 mà manifest k8s đang
-# dùng. Caddy cần ghi /data/caddy, /config/caddy; Symfony cần ghi var/.
-RUN useradd --no-create-home app \
-    && setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp \
+# Chạy bằng user thường. Caddy cần ghi /data/caddy, /config/caddy; Symfony cần
+# ghi var/.
+#
+# Không cần `setcap` ở đây: image gốc đã gắn sẵn cap_net_bind_service=ep lên
+# binary frankenphp. setcap lại chỉ chép thêm cả binary thành một layer ~59MB.
+# Vì binary mang file capability đó, pod `drop: [ALL]` phải `add: [NET_BIND_SERVICE]`,
+# thiếu thì kernel từ chối exec ("Operation not permitted", exit 126).
+#
+# USER khai bằng SỐ: `runAsNonRoot` của k8s chỉ kiểm tra được uid dạng số, gặp tên
+# user thì pod kẹt CreateContainerConfigError.
+RUN useradd --uid 1000 --no-create-home app \
     && chown -R app:app /data/caddy /config/caddy var
-USER app
+USER 1000:1000

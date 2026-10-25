@@ -10,4 +10,6 @@ spec:
   - name: http
     protocol: TCP
     port: 80
-    targetPort: 80
+    # Theo TÊN cổng của pod (hiện là 8080). Lúc rollout, pod cũ và pod mới có thể
+    # mở số cổng khác nhau, Service vẫn gửi đúng cổng của từng pod.
+    targetPort: http

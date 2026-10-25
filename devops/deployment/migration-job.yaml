@@ -10,10 +10,22 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      # Cùng securityContext với frankenphp-deployment.yaml (lý do ghi ở đó). Process
+      # ở đây là `php`, không phải binary frankenphp, nên không cần NET_BIND_SERVICE.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: migration
         image: devho/franken-php:fca5981d8b623fdb1cd0bec459797cd8f86ecdd0
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
         workingDir: /app/public
         command: ["php", "bin/console", "doctrine:migrations:migrate", "--no-interaction"]
         env:
