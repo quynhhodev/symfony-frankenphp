@@ -77,6 +77,10 @@ RUN composer dump-autoload --no-dev --classmap-authoritative \
 #
 # USER khai bằng SỐ: `runAsNonRoot` của k8s chỉ kiểm tra được uid dạng số, gặp tên
 # user thì pod kẹt CreateContainerConfigError.
-RUN useradd --uid 1000 --no-create-home app \
+#
+# uid 10001 chứ không phải 1000: 1000 là user thường đầu tiên trên hầu hết máy Linux
+# (trên node multipass là `ubuntu`). Process thoát được khỏi container sẽ mang uid
+# đó ra node, nên chọn uid không trùng user thật nào.
+RUN useradd --uid 10001 --no-create-home app \
     && chown -R app:app /data/caddy /config/caddy var
-USER 1000:1000
+USER 10001:10001
