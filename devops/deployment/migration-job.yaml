@@ -20,7 +20,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: migration
-        image: devho/franken-php:3ad27e92409ebc6e1387a37846c6e30e79a4a447
+        image: devho/franken-php:1f31521a6b677361ec711b1a26aa7489acc61daf
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
