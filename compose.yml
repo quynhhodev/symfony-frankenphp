@@ -44,7 +44,7 @@ services:
         protocol: tcp
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      # Password đồ bỏ, cố ý để plaintext — cùng lý do như devops/secret/secret.yaml:
+      # Password đồ bỏ, cố ý để plaintext — cùng lý do như devops/base/secret/secret.yaml:
       # cluster/compose này chỉ chạy local, và giá trị nào có thể trùng password thật
       # mới là thứ không được nằm trong repo public.
       #
@@ -98,7 +98,7 @@ services:
   rabbitmq:
     # PIN 3.13 CÓ CHỦ ĐÍCH. Đừng trả về tag trôi `rabbitmq:management`, vì tag đó đã
     # lặng lẽ nhảy lên 4.x.
-    # - k8s chạy 3.13 (devops/deployment/rabbitmq-statefulset.yaml). Local phải cùng
+    # - k8s chạy 3.13 (devops/base/deployment/rabbitmq-statefulset.yaml). Local phải cùng
     #   major version thì mới test được đúng thứ sẽ chạy trên cluster.
     # - Stack gci cũng publish localhost:15672 với 3.13. Hai version khác nhau trên
     #   CÙNG origin thì UI trắng trang: 3.13 không gửi Cache-Control nên trình duyệt
@@ -239,7 +239,7 @@ services:
         condition: service_completed_successfully
 
   # Worker tự thoát theo --time-limit (và cả khi decode lỗi), nên restart là bắt buộc.
-  # Cùng flag với devops/deployment/messenger-worker-deployment.yaml.
+  # Cùng flag với devops/base/deployment/messenger-worker-deployment.yaml.
   worker-cdc:
     <<: *php-cli
     profiles: [cdc]

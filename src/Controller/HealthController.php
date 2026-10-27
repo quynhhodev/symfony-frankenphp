@@ -7,7 +7,7 @@ use Doctrine\DBAL\Exception as DbalException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
-// Endpoint cho probe của k8s (devops/deployment/frankenphp-deployment.yaml).
+// Endpoint cho probe của k8s (devops/base/deployment/frankenphp-deployment.yaml).
 // tcpSocket chỉ biết cổng 80 có mở hay không, nên Symfony lỗi 500 mà pod vẫn Ready.
 final class HealthController
 {

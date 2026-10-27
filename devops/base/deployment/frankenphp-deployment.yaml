@@ -9,7 +9,7 @@ metadata:
     # /env/data 500 suốt 25 phút ngày 26/08/2026 mà không ai biết.
     reloader.stakater.com/auto: "true"
 spec:
-  # Không khai `replicas`: số pod do HPA quyết định (devops/autoscaling/frankenphp-hpa.yaml).
+  # Không khai `replicas`: số pod do HPA quyết định (devops/base/autoscaling/frankenphp-hpa.yaml).
   selector:
     matchLabels:
       app: frankenphp
@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: frankenphp
-        image: devho/franken-php:1f31521a6b677361ec711b1a26aa7489acc61daf
+        image: devho/franken-php
         imagePullPolicy: Always
         # NET_BIND_SERVICE không phải để mở cổng (app nghe 8080): image gốc gắn sẵn
         # file capability đó lên binary frankenphp, thiếu nó trong bounding set thì

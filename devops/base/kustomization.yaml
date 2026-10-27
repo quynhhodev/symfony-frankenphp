@@ -1,0 +1,41 @@
+# Manifest chung cho mọi môi trường. Không cụm nào trỏ ArgoCD thẳng vào đây: mỗi cụm
+# trỏ vào overlay của nó trong devops/overlays/, overlay chỉ ghi phần khác biệt.
+#
+# Xem YAML cuối cùng của một môi trường:
+#   kubectl kustomize devops/overlays/multipass
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Kustomize KHÔNG tự quét thư mục: file nào không có tên ở đây thì không ra cụm, và vì
+# ArgoCD bật `prune: true`, resource đang chạy của file đó sẽ bị XOÁ. Thêm manifest mới
+# là phải thêm dòng ở đây; test.yml chặn PR nếu có file .yaml trong base/ bị quên.
+resources:
+  - autoscaling/frankenphp-hpa.yaml
+  - autoscaling/frankenphp-pdb.yaml
+  - configmap/configmap.yaml
+  - configmap/rabbitmq-definitions.yaml
+  - deployment/frankenphp-deployment.yaml
+  - deployment/messenger-worker-deployment.yaml
+  # Hook PostSync của ArgoCD: không nằm trong danh sách resource của Application, quên
+  # nó thì không có gì báo đỏ, chỉ là migration lặng lẽ thôi chạy ở mỗi lần deploy.
+  - deployment/migration-job.yaml
+  - deployment/postgres-statefulset.yaml
+  - deployment/rabbitmq-statefulset.yaml
+  - ingress/frankenphp-ingress.yaml
+  - ingress/frankenphp-middleware.yaml
+  - ingress/rabbitmq-ingress.yaml
+  - reloader/reloader.yaml
+  - secret/secret.yaml
+  - service/frankenphp/frankenphp-service.yaml
+  - service/postgres/postgres-service.yaml
+  - service/rabbitmq/rabbitmq-service.yaml
+
+# NƠI DUY NHẤT ghi tag image của app. Ba manifest (frankenphp, messenger-worker,
+# migration-job) chỉ khai `image: devho/franken-php` không tag; Kustomize gắn tag này
+# vào lúc render, nên ba workload không thể lệch build nhau.
+#
+# do-ci.yml ghi đè dòng `newTag:` bằng sed sau mỗi lần build. Không dùng
+# `kustomize edit set image`: nó viết lại cả file và xoá sạch comment.
+images:
+  - name: devho/franken-php
+    newTag: 1f31521a6b677361ec711b1a26aa7489acc61daf

@@ -33,8 +33,8 @@ jobs:
       - name: RabbitMQ password khớp giữa secret và definitions
         run: |
           set -euo pipefail
-          dsn=$(grep -oP 'amqp://[^:]+:\K[^@]+' devops/secret/secret.yaml || true)
-          def=$(grep -oP '"password"\s*:\s*"\K[^"]+' devops/configmap/rabbitmq-definitions.yaml || true)
+          dsn=$(grep -oP 'amqp://[^:]+:\K[^@]+' devops/base/secret/secret.yaml || true)
+          def=$(grep -oP '"password"\s*:\s*"\K[^"]+' devops/base/configmap/rabbitmq-definitions.yaml || true)
 
           if [ -z "$dsn" ] || [ -z "$def" ]; then
             echo "LỖI: không trích được password (dsn='$dsn' definitions='$def')." >&2
@@ -49,6 +49,29 @@ jobs:
           fi
 
           echo "OK: password khớp ở cả hai nơi."
+
+      # Kustomize không tự quét thư mục: manifest quên khai trong base/kustomization.yaml
+      # thì không ra cụm, và ArgoCD (`prune: true`) XOÁ resource đang chạy của nó. Không có
+      # lỗi nào báo, nên chặn ở PR. Kèm render mọi overlay để overlay chưa ai dùng (vps,
+      # minikube) không âm thầm hỏng.
+      - name: Kustomize khai đủ manifest và render được mọi overlay
+        run: |
+          set -euo pipefail
+          cd devops/base
+          listed=$(grep -oE '^\s+- \S+\.ya?ml' kustomization.yaml | awk '{print $2}' | sort)
+          actual=$(find . -name '*.yaml' -o -name '*.yml' | sed 's#^\./##' | grep -vx 'kustomization.yaml' | sort)
+          missing=$(comm -13 <(echo "$listed") <(echo "$actual"))
+          if [ -n "$missing" ]; then
+            echo "LỖI: có trong devops/base/ nhưng chưa khai ở resources của kustomization.yaml:" >&2
+            echo "$missing" >&2
+            exit 1
+          fi
+          cd ../..
+
+          for o in devops/overlays/*/; do
+            kubectl kustomize "$o" > /dev/null
+            echo "OK: $o"
+          done
 
       # Unit test Bloblang của pipeline CDC. Không cần Kafka hay RabbitMQ.
       # `lint -r` không expand glob (khác `run`/`test`), nên phải liệt kê từng file resource.
