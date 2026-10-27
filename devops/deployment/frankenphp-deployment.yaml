@@ -19,14 +19,15 @@ spec:
         app: frankenphp
     spec:
       # Đạt chuẩn Pod Security "restricted": lọt được vào container qua lỗ hổng PHP
-      # thì vẫn kẹt ở uid 1000, không leo quyền, không capability, syscall bị lọc.
+      # thì vẫn kẹt ở uid 10001, không leo quyền, không capability, syscall bị lọc.
       #
-      # runAsUser khai bằng số vì `runAsNonRoot` chỉ kiểm tra được uid dạng số, mà
-      # image cũ (trước khi Dockerfile đổi sang `USER 1000:1000`) khai `USER app`.
+      # runAsUser khai bằng số vì `runAsNonRoot` chỉ kiểm tra được uid dạng số. Khai
+      # ở đây chứ không chỉ trong Dockerfile để pod luôn chạy đúng uid này, kể cả với
+      # image cũ còn chạy trong lúc CI build image mới.
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsUser: 10001
+        runAsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -142,6 +143,28 @@ spec:
           periodSeconds: 20
           timeoutSeconds: 3
           failureThreshold: 3
+        # Pod bị xoá thì k8s gỡ nó khỏi Service và gửi SIGTERM CÙNG LÚC, nhưng Traefik
+        # cần một nhịp mới thấy endpoint biến mất. FrankenPHP đóng cổng ngay khi nhận
+        # SIGTERM, nên request rơi vào khe đó bị lỗi: đo được 1/372 request lỗi lúc
+        # rollout PR #41. Ngủ 5s trước SIGTERM để Traefik kịp ngừng gửi vào pod này.
+        # 5s nằm trong terminationGracePeriodSeconds mặc định 30s.
+        lifecycle:
+          preStop:
+            sleep:
+              seconds: 5
+        # Caddy ghi CA nội bộ và config vào /data, /config. emptyDir thì uid nào cũng
+        # ghi được, không phụ thuộc thư mục trong image thuộc uid nào: image cũ (thư
+        # mục thuộc uid 1000) vẫn chạy được với runAsUser 10001 trong lúc chờ CI.
+        volumeMounts:
+          - name: caddy-data
+            mountPath: /data
+          - name: caddy-config
+            mountPath: /config
+      volumes:
+        - name: caddy-data
+          emptyDir: {}
+        - name: caddy-config
+          emptyDir: {}
 
 
 
