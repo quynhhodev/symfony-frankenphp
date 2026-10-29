@@ -8,8 +8,8 @@
 # (IP nào của node cũng được — 10.62.164.150 / .198 / .61 — NodePort mở trên mọi node.)
 #
 # Đăng nhập: quynh / local-dev-only
-# Password nằm plaintext trong devops/configmap/rabbitmq-definitions.yaml LÀ CÓ CHỦ
-# ĐÍCH — xem lý do trong devops/secret/secret.yaml. Viết ra đây không lộ thêm gì.
+# Password nằm plaintext trong devops/base/configmap/rabbitmq-definitions.yaml LÀ CÓ CHỦ
+# ĐÍCH — xem lý do trong devops/base/secret/secret.yaml. Viết ra đây không lộ thêm gì.
 #
 # CẢNH BÁO: đây là UI quản trị đầy đủ — xoá queue, xoá user, đọc message. Nó chỉ an
 # toàn vì cluster multipass này nằm trong mạng nội bộ. Ngày nào cluster ra internet

@@ -69,30 +69,36 @@ jobs:
           repo='${{ env.repository }}'
           new="${repo}:${{ github.sha }}"
 
-          # MỌI manifest nhắc tới image này phải cùng một tag: app, migration-job
-          # (hook PostSync, imagePullPolicy Always) và messenger-worker. Lệch tag là
-          # ba build khác nhau cùng chạy trên một cluster.
+          # Tag nằm ở ĐÚNG MỘT chỗ: `images[].newTag` trong devops/base/kustomization.yaml.
+          # Kustomize gắn nó vào mọi workload dùng image này (app, messenger-worker,
+          # migration-job), kể cả manifest thêm sau, nên không thể có hai build cùng
+          # chạy trên một cluster.
           #
-          # Quét động chứ KHÔNG liệt kê tay. Danh sách cứng trước đây có grep gác cho
-          # file nằm TRONG danh sách, nhưng file nằm ngoài thì bị bỏ qua không một
-          # tiếng động — thêm manifest mới mà quên sửa mảng là nó đóng đinh ở tag cũ
-          # vĩnh viễn, không có tín hiệu nào.
-          mapfile -t files < <(grep -rl "image: ${repo}" devops/)
-
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "LỖI: không manifest nào trong devops/ nhắc tới image ${repo}" >&2
+          # sed chứ không `kustomize edit set image`: lệnh đó viết lại cả file và xoá
+          # sạch comment giải thích trong kustomization.yaml.
+          kfile=devops/base/kustomization.yaml
+          if [ "$(grep -cE '^\s+newTag:' "$kfile")" -ne 1 ]; then
+            echo "LỖI: $kfile phải có đúng một dòng newTag:, sed không biết sửa dòng nào" >&2
             exit 1
           fi
+          sed -i -E "s#^(\s+newTag:).*#\1 ${{ github.sha }}#" "$kfile"
 
-          printf 'cập nhật tag trong: %s\n' "${files[@]}"
-
-          for f in "${files[@]}"; do
-            sed -i -E "s#image: ${repo}[^[:space:]]*#image: ${new}#" "$f"
+          # Render lại để chắc sed sửa đúng chỗ: mọi `image: ${repo}` trong YAML cuối
+          # cùng phải mang tag mới. Kiểm mọi overlay, trừ minikube (dùng image local).
+          for o in devops/overlays/*/; do
+            [ "$(basename "$o")" = minikube ] && continue
+            imgs=$(kubectl kustomize "$o" | grep -E "image: ${repo}(:|$)" || true)
+            if [ -z "$imgs" ] || grep -qv "image: ${new}$" <<<"$imgs"; then
+              echo "LỖI: $o render ra image sai tag:" >&2
+              echo "${imgs:-<không có image ${repo} nào>}" >&2
+              exit 1
+            fi
+            echo "$o: $(wc -l <<<"$imgs") workload dùng ${new}"
           done
 
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "${files[@]}"
+          git add "$kfile"
 
           # Build lại đúng commit cũ thì manifest không đổi — thoát êm.
           if git diff --cached --quiet; then

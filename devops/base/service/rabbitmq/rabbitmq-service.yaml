@@ -12,7 +12,7 @@ spec:
       port: 5672
       targetPort: amqp
     # UI quản trị. Vào bằng http://rabbitmq.local:32723 — xem
-    # devops/ingress/rabbitmq-ingress.yaml. Không có /etc/hosts thì vẫn port-forward được:
+    # devops/base/ingress/rabbitmq-ingress.yaml. Không có /etc/hosts thì vẫn port-forward được:
     #   kubectl --context multipass -n default port-forward svc/rabbitmq 15672:15672
     - name: management
       port: 15672

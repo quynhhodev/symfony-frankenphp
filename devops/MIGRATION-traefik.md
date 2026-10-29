@@ -9,7 +9,7 @@
 ingress-nginx đã ngừng bảo trì từ 3/2026: không còn bản release, không còn vá bảo mật.
 Manifest trong `devops/` giờ khai `ingressClassName: traefik`, và rate limit chuyển từ
 annotation `nginx.ingress.kubernetes.io/*` sang CRD `Middleware` của Traefik
-(`devops/ingress/frankenphp-middleware.yaml`).
+(`devops/base/ingress/frankenphp-middleware.yaml`).
 
 VPS chạy k3s thì không cần file này: k3s có sẵn Traefik, xem `RUNBOOK-vps-k3s.md`.
 

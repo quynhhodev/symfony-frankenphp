@@ -1,0 +1,36 @@
+# VPS chạy k3s, xem devops/RUNBOOK-vps-k3s.md.
+#
+# CHƯA CỤM NÀO DÙNG overlay này: nó chỉ có tác dụng khi một ArgoCD Application trỏ
+# `path: devops/overlays/vps`. CI vẫn render nó ở mỗi PR (test.yml) để nó không lỗi thời.
+#
+# k3s có sẵn StorageClass `local-path` và Ingress class `traefik` cùng tên với base,
+# nên chỉ vá đúng những gì RUNBOOK bắt buộc. Những việc RUNBOOK mục 4 còn lại
+# (Sealed Secrets, TLS) chưa làm ở đây.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  # RUNBOOK mục 3. `rules` là list không có khoá merge, nên vá theo chỉ số bằng JSON
+  # patch; strategic merge sẽ thay cả list và mất phần `http`.
+  #
+  # app.CHANGE-ME.invalid: đổi sang domain thật trước khi trỏ ArgoCD vào đây. Đuôi
+  # `.invalid` (RFC 2606) không bao giờ phân giải được, quên đổi là thấy ngay.
+  - target:
+      kind: Ingress
+      name: frankenphp-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: app.CHANGE-ME.invalid
+
+  # RUNBOOK mục 4.2: UI quản trị RabbitMQ không được ra internet. Vào bằng
+  # port-forward qua SSH khi cần.
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: rabbitmq-ingress

@@ -10,7 +10,7 @@
 # `rabbitmqctl import_definitions` với field `password`, rồi `authenticate_user` trả
 # Success. Không cần tự tính password_hash.
 #
-# BẤT BIẾN: password dưới đây phải KHỚP DSN trong devops/secret/secret.yaml.
+# BẤT BIẾN: password dưới đây phải KHỚP DSN trong devops/base/secret/secret.yaml.
 # Lệch nhau là ACCESS_REFUSED. test.yml có guard chặn lệch.
 ---
 apiVersion: v1

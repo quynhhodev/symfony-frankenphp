@@ -53,7 +53,7 @@ Kiểm tra trước khi merge, phải in ra `2`:
 
 ```bash
 kubectl --context multipass apply --server-side --field-manager=argocd-controller \
-  --dry-run=server -f devops/deployment/frankenphp-deployment.yaml \
+  --dry-run=server -f devops/base/deployment/frankenphp-deployment.yaml \
   -o jsonpath='{.spec.replicas}{"\n"}'
 ```
 

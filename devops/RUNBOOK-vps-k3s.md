@@ -17,15 +17,17 @@ Cluster multipass hiện tại (kubeadm) cần **6 bước** bootstrap. k3s gói
 
 Còn **3 bước**.
 
-### Manifest hiện tại chạy được ngay, không sửa gì
+### Base chạy được trên k3s, chỉ overlay `vps` vá phần khác
 
-Đã đối chiếu:
+VPS dùng overlay `devops/overlays/vps`: chung `devops/base` với cụm multipass, chỉ khác
+host của ingress (mục 3) và bỏ ingress RabbitMQ (mục 4.2). Đã đối chiếu base với k3s:
 
 - `storageClassName: local-path` ở cả hai StatefulSet → **trùng đúng tên** provisioner k3s cho sẵn
 - Không có `nodeSelector`, `affinity`, hay `topologySpreadConstraints` → một node chạy được
 - Cả 3 ingress khai `ingressClassName: traefik` → **trùng đúng tên** IngressClass k3s cho sẵn,
   CRD `Middleware` (`traefik.io/v1alpha1`) của rate limit cũng có sẵn
-- `replicas: 2` của frankenphp vẫn chạy trên một node, nhưng **không còn ý nghĩa HA** — hai pod chết cùng lúc khi VPS chết
+- HPA giữ tối thiểu 2 pod frankenphp, vẫn chạy trên một node, nhưng **không còn ý nghĩa HA** — mọi pod chết cùng lúc khi VPS chết.
+  k3s có sẵn metrics-server nên HPA chạy ngay (xem `devops/HPA.md`)
 
 Trước đây runbook tắt Traefik để dùng ingress-nginx. ingress-nginx đã ngừng bảo trì từ
 3/2026 (không còn vá bảo mật), nên giờ manifest chuyển sang Traefik và dùng luôn bản k3s cho sẵn.
@@ -74,29 +76,34 @@ kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.1/manifests/install.yaml
 kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
 
-# 3) giao repo cho ArgoCD
+# 3) giao repo cho ArgoCD. File trong repo trỏ overlay multipass, nên đổi sang
+#    overlay vps khi apply. Quên đổi thì VPS dựng cả ingress RabbitMQ (mục 4.2).
 git clone https://github.com/quynhhodev/symfony-frankenphp.git
-kubectl apply -n argocd -f symfony-frankenphp/devops/argocd/argocd-application.yaml
+sed 's#devops/overlays/multipass#devops/overlays/vps#' \
+  symfony-frankenphp/devops/argocd/argocd-application.yaml | kubectl apply -n argocd -f -
+kubectl -n argocd get application frankenphp -o jsonpath='{.spec.source.path}'   # phải in devops/overlays/vps
 ```
 
 **Sau bước 3 là hết phần tay.** ArgoCD kéo `main` và tự dựng postgres, rabbitmq,
 frankenphp, messenger-worker, Reloader, ingress, rồi chạy Job migration PostSync.
 
-> `devops/` có `recurse: true` nhưng ArgoCD chỉ đọc `.yaml`/`.yml`/`.json` — file `.md`
-> này bị bỏ qua. Kiểm ở lần sync đầu: `Application` không được liệt kê resource lạ nào.
+> Xem trước đúng những gì ArgoCD sẽ dựng: `kubectl kustomize devops/overlays/vps`.
 
 ---
 
 ## 3. Sửa cái duy nhất phải sửa: host của ingress
 
-`frankenphp-ingress.yaml` đang khai `host: frankenphp.local`. Đổi sang domain thật rồi
-commit — ArgoCD tự rollout:
+`devops/overlays/vps/kustomization.yaml` đang vá host thành `app.CHANGE-ME.invalid`,
+một domain cố tình không bao giờ phân giải được. Đổi sang domain thật rồi commit, ArgoCD
+tự rollout:
 
 ```yaml
-- host: app.<domain>
+        value: app.<domain>
 ```
 
-Đây là **thay đổi manifest duy nhất** mà việc chuyển sang VPS bắt buộc.
+Chỉ sửa trong overlay, KHÔNG sửa `frankenphp-ingress.yaml` của base: base vẫn là
+`frankenphp.local` cho cụm multipass. Đây là **thay đổi manifest duy nhất** mà việc chuyển
+sang VPS bắt buộc.
 
 ---
 
@@ -112,16 +119,17 @@ commit — ArgoCD tự rollout:
 
 ```bash
 helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system
-# rồi kubeseal từng secret, thay devops/secret/secret.yaml bằng bản đã seal
+# rồi kubeseal từng secret, thay devops/base/secret/secret.yaml bằng bản đã seal
 ```
 
-Nhớ sửa cả `definitions.json` trong `devops/configmap/rabbitmq-definitions.yaml` cho khớp
+Nhớ sửa cả `definitions.json` trong `devops/base/configmap/rabbitmq-definitions.yaml` cho khớp
 — guard ở `test.yml` sẽ chặn nếu lệch.
 
 **4.2 — Gỡ RabbitMQ management UI khỏi internet**
 
-`devops/ingress/rabbitmq-ingress.yaml` mở UI quản trị đầy đủ. Trên VPS: **xoá file đó**,
-vào bằng port-forward qua SSH khi cần:
+`devops/base/ingress/rabbitmq-ingress.yaml` mở UI quản trị đầy đủ. **Đã xử lý**: overlay
+`vps` bỏ ingress này (`$patch: delete`), cụm multipass vẫn giữ. Vào bằng port-forward qua
+SSH khi cần:
 
 ```bash
 ssh -L 15672:localhost:15672 user@vps
@@ -139,8 +147,9 @@ File đó bật `server.insecure: "true"` (HTTP trần). Ai vào được ArgoCD
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
 ```
 
-Rồi tạo `ClusterIssuer` Let's Encrypt và thêm khối `tls:` vào `frankenphp-ingress.yaml`.
-Hiện `devops/` **không có một dòng `tls:` nào**.
+Rồi tạo `ClusterIssuer` Let's Encrypt và thêm khối `tls:` cho `frankenphp-ingress` bằng
+một patch trong `devops/overlays/vps` (cụm multipass không cần TLS). Hiện `devops/`
+**không có một dòng `tls:` nào**.
 
 ---
 

@@ -1,0 +1,47 @@
+# Chạy thử trên minikube ở máy local, với image build ngay trong minikube:
+#
+#   minikube image build -t franken-php:dev -f docker/frankenphp/Dockerfile .
+#   kubectl apply -k devops/overlays/minikube
+#
+# Cụm vẫn cần Traefik (Ingress class `traefik` và CRD Middleware), cài bằng Helm như
+# devops/MIGRATION-traefik.md. Không ArgoCD nào trỏ vào đây.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Image build local, không có trên Docker Hub.
+images:
+  - name: devho/franken-php
+    newName: franken-php
+    newTag: dev
+
+patches:
+  # Base để `Always` vì tag trên Docker Hub luôn kéo về bản mới nhất. Image local thì
+  # Always làm kubelet đi tìm `franken-php:dev` trên Docker Hub và kẹt ErrImagePull.
+  - target:
+      kind: Deployment
+      name: frankenphp|messenger-worker
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+  - target:
+      kind: Job
+      name: doctrine-migrations
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent
+
+  # minikube không có `local-path`, StorageClass mặc định tên `standard`.
+  # volumeClaimTemplates là list không có khoá merge: phải vá theo chỉ số bằng JSON
+  # patch, strategic merge sẽ thay cả template và mất accessModes, dung lượng.
+  - target:
+      kind: StatefulSet
+      name: postgres|rabbitmq
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: standard
