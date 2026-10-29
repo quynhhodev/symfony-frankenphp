@@ -38,4 +38,4 @@ resources:
 # `kustomize edit set image`: nó viết lại cả file và xoá sạch comment.
 images:
   - name: devho/franken-php
-    newTag: 1f31521a6b677361ec711b1a26aa7489acc61daf
+    newTag: 68544cd1928c4fb90a2b229183ba63539f46709a
