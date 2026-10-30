@@ -73,8 +73,12 @@ Niêm phong password mới như trên, rồi:
 **THỨ TỰ: Secret mới lên cụm TRƯỚC, `ALTER USER` NGAY SAU.** Postgres không giữ được hai
 password cùng lúc. Secret đổi → Reloader restart frankenphp/worker → pod mới đứng
 NotReady (chưa đăng nhập được DB) → chạy `ALTER USER` → pod mới Ready, readiness probe tự
-chuyển traffic sang. Làm `ALTER` trước thì mọi pod cũ hỏng DB khoảng 30 giây trong lúc
-chờ rollout.
+chuyển traffic sang. Làm `ALTER` trước thì mọi pod cũ hỏng DB trong suốt rollout.
+
+**Đo thật (31/10/2026): 27 giây `503`** ở route chạm DB, không phải vài giây. Sau `ALTER`,
+pod cũ (password cũ) chỉ bị rút khỏi Service khi readiness fail đủ 3 lần × 10 giây. Muốn
+không lỗi thì phải có hai credential hợp lệ cùng lúc: user DB riêng cho app, xoay qua lại
+giữa hai user (việc để sau, cần chuyển owner bảng cho Doctrine).
 
 ```bash
 K="kubectl --context multipass"
