@@ -133,7 +133,7 @@ SSH khi cần:
 
 ```bash
 ssh -L 15672:localhost:15672 user@vps
-kubectl -n default port-forward svc/rabbitmq 15672:15672
+kubectl -n frankenphp port-forward svc/rabbitmq 15672:15672
 ```
 
 **4.3 — Đừng apply `argocd-ingress.yaml`**
@@ -168,10 +168,10 @@ backup chưa từng restore thì chưa phải backup.
 ```bash
 kubectl -n argocd get application frankenphp     # Synced/Healthy
 kubectl get pods -A | grep -v Running            # chỉ còn Job Completed
-kubectl get pvc                                  # postgres + rabbitmq đều Bound
+kubectl -n frankenphp get pvc                    # postgres + rabbitmq đều Bound
 curl -I https://app.<domain>/env/data            # HTTP 200, có TLS
-kubectl -n default exec sts/rabbitmq -- rabbitmqctl list_queues name messages
-kubectl -n default logs deploy/messenger-worker --tail=20   # thấy fan-out 2 handler
+kubectl -n frankenphp exec sts/rabbitmq -- rabbitmqctl list_queues name messages
+kubectl -n frankenphp logs deploy/messenger-worker --tail=20   # thấy fan-out 2 handler
 ```
 
 **Đừng hoảng** khi cột `consumers` của queue bằng 0 — Symfony AMQP transport dùng

@@ -1,7 +1,11 @@
 # Chạy thử trên minikube ở máy local, với image build ngay trong minikube:
 #
 #   minikube image build -t franken-php:dev -f docker/frankenphp/Dockerfile .
+#   kubectl create namespace frankenphp
 #   kubectl apply -k devops/overlays/minikube
+#
+# `kubectl apply -k` không tự tạo namespace (ở cụm multipass ArgoCD tạo, xem
+# argocd-application.yaml), nên phải tạo tay trước.
 #
 # Cụm vẫn cần Traefik (Ingress class `traefik` và CRD Middleware), cài bằng Helm như
 # devops/MIGRATION-traefik.md. Không ArgoCD nào trỏ vào đây.

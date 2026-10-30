@@ -13,7 +13,7 @@ spec:
       targetPort: amqp
     # UI quản trị. Vào bằng http://rabbitmq.local:32723 — xem
     # devops/base/ingress/rabbitmq-ingress.yaml. Không có /etc/hosts thì vẫn port-forward được:
-    #   kubectl --context multipass -n default port-forward svc/rabbitmq 15672:15672
+    #   kubectl --context multipass -n frankenphp port-forward svc/rabbitmq 15672:15672
     - name: management
       port: 15672
       targetPort: management

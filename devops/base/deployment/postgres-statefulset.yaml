@@ -35,6 +35,8 @@ spec:
       labels:
         app: postgres # `postgres-service` select theo label này — đổi là app mất DB
     spec:
+      # Không gọi API của k8s, không cần token.
+      automountServiceAccountToken: false
       containers:
         - name: postgres
           image: postgres:15-alpine

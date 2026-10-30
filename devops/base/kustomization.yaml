@@ -6,6 +6,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# Ghi đè metadata.namespace của MỌI resource có namespace (kể cả dòng `namespace:` ghi
+# cứng trong file vendor như reloader.yaml), và subjects của RoleBinding/
+# ClusterRoleBinding. KHÔNG sửa được tên namespace nằm trong chuỗi: annotation
+# middleware của frankenphp-ingress.yaml phải đổi tay theo.
+#
+# Namespace do ArgoCD tạo (managedNamespaceMetadata trong argocd-application.yaml),
+# CỐ Ý không có object Namespace ở đây: nằm dưới `prune: true` thì một lần đổi
+# `path` nhầm là ArgoCD xoá cả namespace cùng PVC của Postgres.
+namespace: frankenphp
+
 # Kustomize KHÔNG tự quét thư mục: file nào không có tên ở đây thì không ra cụm, và vì
 # ArgoCD bật `prune: true`, resource đang chạy của file đó sẽ bị XOÁ. Thêm manifest mới
 # là phải thêm dòng ở đây; test.yml chặn PR nếu có file .yaml trong base/ bị quên.
@@ -24,6 +34,9 @@ resources:
   - ingress/frankenphp-ingress.yaml
   - ingress/frankenphp-middleware.yaml
   - ingress/rabbitmq-ingress.yaml
+  - policy/limitrange.yaml
+  - policy/resourcequota.yaml
+  - rbac/serviceaccount.yaml
   - reloader/reloader.yaml
   - secret/secret.yaml
   - service/frankenphp/frankenphp-service.yaml

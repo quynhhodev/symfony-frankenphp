@@ -14,7 +14,6 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: frankenphp-ratelimit
-  namespace: default
 spec:
   rateLimit:
     # 10 req/s mỗi IP, cho dồn tới 50. Mặc định đã đếm theo IP client.
@@ -26,7 +25,6 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: frankenphp-inflight
-  namespace: default
 spec:
   inFlightReq:
     # Tối đa 20 request đang xử lý cùng lúc mỗi IP.

@@ -1,0 +1,21 @@
+# Lưới đỡ cho ResourceQuota: container nào quên khai resources thì nhận mặc định dưới
+# đây thay vì bị quota từ chối. Mọi workload trong base đều đã khai rõ; LimitRange chỉ
+# bắt container thêm sau mà quên.
+#
+# `max` chặn một container chiếm quá phần lớn node worker (3 CPU, ~6Gi).
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: frankenphp
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 512Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
