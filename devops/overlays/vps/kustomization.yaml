@@ -16,12 +16,19 @@ patches:
   # RUNBOOK mục 3. `rules` là list không có khoá merge, nên vá theo chỉ số bằng JSON
   # patch; strategic merge sẽ thay cả list và mất phần `http`.
   #
+  # Vá theo chỉ số thì phụ thuộc thứ tự rule trong base. `test` chặn trước: rule đầu
+  # tiên không còn là frankenphp.local (ai đó chèn rule mới lên đầu) thì render lỗi
+  # "test failed" ngay trên CI, thay vì âm thầm đổi host của nhầm rule.
+  #
   # app.CHANGE-ME.invalid: đổi sang domain thật trước khi trỏ ArgoCD vào đây. Đuôi
   # `.invalid` (RFC 2606) không bao giờ phân giải được, quên đổi là thấy ngay.
   - target:
       kind: Ingress
       name: frankenphp-ingress
     patch: |-
+      - op: test
+        path: /spec/rules/0/host
+        value: frankenphp.local
       - op: replace
         path: /spec/rules/0/host
         value: app.CHANGE-ME.invalid
