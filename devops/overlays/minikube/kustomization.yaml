@@ -20,20 +20,43 @@ images:
 patches:
   # Base để `Always` vì tag trên Docker Hub luôn kéo về bản mới nhất. Image local thì
   # Always làm kubelet đi tìm `franken-php:dev` trên Docker Hub và kẹt ErrImagePull.
-  - target:
+  #
+  # Strategic merge chứ không JSON patch `/containers/0`: `containers` có khoá merge
+  # là `name`, nên patch tìm đúng container theo tên. Theo chỉ số thì thêm một sidecar
+  # đứng trước là patch âm thầm sửa nhầm container.
+  - patch: |-
+      apiVersion: apps/v1
       kind: Deployment
-      name: frankenphp|messenger-worker
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: IfNotPresent
-  - target:
+      metadata:
+        name: frankenphp
+      spec:
+        template:
+          spec:
+            containers:
+              - name: frankenphp
+                imagePullPolicy: IfNotPresent
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: messenger-worker
+      spec:
+        template:
+          spec:
+            containers:
+              - name: worker
+                imagePullPolicy: IfNotPresent
+  - patch: |-
+      apiVersion: batch/v1
       kind: Job
-      name: doctrine-migrations
-    patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/imagePullPolicy
-        value: IfNotPresent
+      metadata:
+        name: doctrine-migrations
+      spec:
+        template:
+          spec:
+            containers:
+              - name: migration
+                imagePullPolicy: IfNotPresent
 
   # minikube không có `local-path`, StorageClass mặc định tên `standard`.
   # volumeClaimTemplates là list không có khoá merge: phải vá theo chỉ số bằng JSON
