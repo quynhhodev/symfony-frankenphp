@@ -44,9 +44,9 @@ services:
         protocol: tcp
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
-      # Password đồ bỏ, cố ý để plaintext — cùng lý do như devops/base/secret/secret.yaml:
-      # cluster/compose này chỉ chạy local, và giá trị nào có thể trùng password thật
-      # mới là thứ không được nằm trong repo public.
+      # Password đồ bỏ, cố ý để plaintext: compose chỉ chạy trên máy dev, và giá trị nào
+      # có thể trùng password thật mới là thứ không được nằm trong repo public. Cụm k8s
+      # thì khác: password ở đó do devops/scripts/seal-secrets.sh sinh và niêm phong.
       #
       # BẪY: POSTGRES_PASSWORD chỉ có tác dụng khi thư mục data còn RỖNG, tức lần
       # `up` đầu tiên của một volume mới. Volume `database_data` đã init rồi thì đổi

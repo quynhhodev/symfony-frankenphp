@@ -113,17 +113,13 @@ sang VPS bắt buộc.
 > *cluster local, không ra internet*. **VPS phá vỡ đúng điều kiện đó.** Bốn việc dưới đây
 > không phải khuyến nghị — không làm thì đừng mở ra internet.
 
-**4.1 — Xoay mọi password sang giá trị thật, đưa vào Sealed Secrets**
+**4.1 — Niêm phong password riêng của VPS bằng Sealed Secrets**
 
-Đang lộ công khai trên GitHub: `local-dev-only` (RabbitMQ) và `mysecretpassword` (postgres).
-
-```bash
-helm install sealed-secrets sealed-secrets/sealed-secrets -n kube-system
-# rồi kubeseal từng secret, thay devops/base/secret/secret.yaml bằng bản đã seal
-```
-
-Nhớ sửa cả `definitions.json` trong `devops/base/configmap/rabbitmq-definitions.yaml` cho khớp
-— guard ở `test.yml` sẽ chặn nếu lệch.
+Base không còn Secret nào; cụm multipass đã dùng Sealed Secrets (xem `devops/SEALED-SECRETS.md`).
+Bản niêm phong của multipass KHÔNG mở được trên VPS (mỗi controller một khóa), nên VPS phải:
+cài controller, sao lưu khóa của VPS, `--fetch-cert` vào `devops/overlays/vps/`, rồi
+`devops/scripts/seal-secrets.sh seal vps` với password MỚI, khác multipass. Thiếu bước này
+thì pod đứng `CreateContainerConfigError` vì không có `frankenphp-secret`.
 
 **4.2 — Gỡ RabbitMQ management UI khỏi internet**
 

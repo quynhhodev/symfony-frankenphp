@@ -1,11 +1,16 @@
 # Cụm kubeadm local trên multipass. ArgoCD (devops/argocd/argocd-application.yaml)
 # trỏ vào đây.
 #
-# Không vá gì: base được viết đúng cho cụm này (StorageClass local-path, Ingress class
-# traefik, host *.local trong /etc/hosts). Có overlay riêng để cụm khác không phải
-# đụng vào base, và để chỗ khác biệt về sau của multipass có nơi để ghi.
+# Base được viết đúng cho cụm này (StorageClass local-path, Ingress class traefik, host
+# *.local trong /etc/hosts), nên overlay chỉ thêm thứ RIÊNG của cụm: Secret đã niêm phong.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
   - ../../base
+  # SealedSecret `frankenphp-secret` và `rabbitmq-definitions`, niêm phong bằng khóa
+  # của controller TRÊN CỤM NÀY (sealed-secrets-cert.pem cùng thư mục). Cụm khác không
+  # mở được: VPS phải tự niêm phong với cert của nó. Sinh lại / đổi password:
+  #   POSTGRES_PASSWORD=... RABBITMQ_PASSWORD=... devops/scripts/seal-secrets.sh seal multipass
+  # rồi làm theo devops/SEALED-SECRETS.md (đổi password trên hệ thống đang chạy).
+  - sealed-secrets.yaml

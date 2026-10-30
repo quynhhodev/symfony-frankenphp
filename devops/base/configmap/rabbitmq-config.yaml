@@ -1,0 +1,21 @@
+# Bảo RabbitMQ nạp definitions khi boot. Bản thân definitions.json (có password của
+# user `quynh`) nằm trong Secret `rabbitmq-definitions`, do devops/scripts/seal-secrets.sh
+# sinh rồi niêm phong vào overlay của từng cụm. ConfigMap này không được chứa password:
+# test.yml chặn chuỗi "password" trong mọi ConfigMap.
+#
+# Credential của RabbitMQ khai bằng definitions, KHÔNG bằng RABBITMQ_DEFAULT_USER/PASS.
+# Hai biến đó chỉ có tác dụng khi mnesia còn RỖNG, tức lần boot đầu tiên của một PVC
+# mới. Broker đã có data thì đổi chúng chẳng thay đổi gì: Git nói password là X, broker
+# giữ Y, app ăn ACCESS_REFUSED, lỗi trông y hệt broker chết. `load_definitions` thì được
+# áp lại MỖI LẦN BOOT, nên Secret mới thật sự là nguồn sự thật cho credential.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+data:
+  # Mảnh config rơi vào /etc/rabbitmq/conf.d/. Image official đã đặt sẵn
+  # 10-defaults.conf ở đó, nên StatefulSet phải mount bằng subPath — mount cả thư mục
+  # sẽ che mất file của image.
+  20-definitions.conf: |
+    load_definitions = /etc/rabbitmq/definitions.json
