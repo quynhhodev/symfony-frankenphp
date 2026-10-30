@@ -4,7 +4,9 @@ metadata:
   name: frankenphp-ingress
   annotations:
     # Rate limit theo IP client, khai ở frankenphp-middleware.yaml cùng thư mục.
-    traefik.ingress.kubernetes.io/router.middlewares: default-frankenphp-ratelimit@kubernetescrd,default-frankenphp-inflight@kubernetescrd
+    # Tiền tố `frankenphp-` là NAMESPACE (namespace: trong base/kustomization.yaml).
+    # Kustomize không sửa được chuỗi này: đổi namespace là phải sửa tay ở đây.
+    traefik.ingress.kubernetes.io/router.middlewares: frankenphp-frankenphp-ratelimit@kubernetescrd,frankenphp-frankenphp-inflight@kubernetescrd
 
 spec:
   ingressClassName: traefik

@@ -26,7 +26,8 @@ spec:
     path: devops/overlays/multipass
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    # Khớp `namespace:` của devops/base/kustomization.yaml.
+    namespace: frankenphp
   # StatefulSet có `volumeClaimTemplates` thì API server nhồi vào đó những field mà Git
   # không thể khai báo được — `status: {phase: Pending}`, `apiVersion`, `kind`,
   # `metadata.creationTimestamp: null`. ArgoCD không normalize được nên StatefulSet đỏ
@@ -62,5 +63,17 @@ spec:
       # Chỉ thêm `selfHeal: true` sau khi app đứng Synced/Healthy ổn định qua
       # vài lần push, rồi apply lại file này.
     syncOptions:
+      # ArgoCD tạo namespace `frankenphp` và KHÔNG BAO GIỜ xoá nó, kể cả khi prune. Vì
+      # vậy namespace khai ở đây chứ không là object trong base (xem kustomization.yaml).
       - CreateNamespace=true
       - ServerSideApply=true
+    # Label của namespace do ArgoCD tạo. Pod Security:
+    # - enforce=baseline: chặn pod chạy privileged, hostPath, host network... Mọi pod
+    #   hiện tại đều đạt (đã dry-run).
+    # - warn/audit=restricted: chưa chặn, vì Postgres, RabbitMQ và Reloader (image bên
+    #   thứ ba) chưa đạt restricted. Chỉ cảnh báo, để thấy pod nào còn lệch chuẩn.
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: baseline
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/audit: restricted

@@ -18,6 +18,10 @@ spec:
       labels:
         app: frankenphp
     spec:
+      # SA riêng, KHÔNG gắn token API k8s: app không gọi API của cụm, nên lọt vào
+      # pod cũng không có token để dò hay phá cụm.
+      serviceAccountName: frankenphp
+      automountServiceAccountToken: false
       # Đạt chuẩn Pod Security "restricted": lọt được vào container qua lỗ hổng PHP
       # thì vẫn kẹt ở uid 10001, không leo quyền, không capability, syscall bị lọc.
       #

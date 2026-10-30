@@ -62,9 +62,9 @@ Lần đầu HPA scale, nó ghi `replicas` qua subresource `scale` và thành ch
 ## Sau khi merge: kiểm tra
 
 ```bash
-kubectl --context multipass get hpa frankenphp   # TARGETS dạng 3%/70%, không phải <unknown>
-kubectl --context multipass get pdb frankenphp   # ALLOWED DISRUPTIONS = 1
-kubectl --context multipass get deploy frankenphp
+kubectl --context multipass -n frankenphp get hpa frankenphp   # TARGETS dạng 3%/70%, không phải <unknown>
+kubectl --context multipass -n frankenphp get pdb frankenphp   # ALLOWED DISRUPTIONS = 1
+kubectl --context multipass -n frankenphp get deploy frankenphp
 ```
 
 ## Thử tải
@@ -72,13 +72,13 @@ kubectl --context multipass get deploy frankenphp
 Terminal 1:
 
 ```bash
-kubectl --context multipass get hpa frankenphp -w
+kubectl --context multipass -n frankenphp get hpa frankenphp -w
 ```
 
 Terminal 2: 6 vòng lặp gọi song song, tự dừng sau 5 phút.
 
 ```bash
-kubectl --context multipass run load --rm -i --image=busybox:1.36 --restart=Never -- \
+kubectl --context multipass -n frankenphp run load --rm -i --image=busybox:1.36 --restart=Never -- \
   sh -c 'for w in 1 2 3 4 5 6; do (while true; do wget -q -O /dev/null http://frankenphp/health/live; done) & done; sleep 300'
 ```
 

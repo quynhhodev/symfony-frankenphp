@@ -10,6 +10,10 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      # SA riêng, KHÔNG gắn token API k8s: app không gọi API của cụm, nên lọt vào
+      # pod cũng không có token để dò hay phá cụm.
+      serviceAccountName: frankenphp
+      automountServiceAccountToken: false
       # Cùng securityContext với frankenphp-deployment.yaml (lý do ghi ở đó). Process
       # ở đây là `php`, không phải binary frankenphp, nên không cần NET_BIND_SERVICE.
       securityContext:
@@ -26,6 +30,15 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop: [ALL]
+        # Bắt buộc từ khi namespace có ResourceQuota: quota tính limits nên pod không
+        # khai thì bị từ chối tạo (LimitRange chỉ là lưới đỡ thứ hai).
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
         workingDir: /app/public
         command: ["php", "bin/console", "doctrine:migrations:migrate", "--no-interaction"]
         env:

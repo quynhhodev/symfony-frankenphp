@@ -32,6 +32,8 @@ spec:
       labels:
         app: rabbitmq # Service `rabbitmq` select theo label này
     spec:
+      # Không gọi API của k8s, không cần token.
+      automountServiceAccountToken: false
       containers:
         - name: rabbitmq
           # Bản -management có sẵn UI ở cổng 15672. Pin theo minor để nâng cấp là việc

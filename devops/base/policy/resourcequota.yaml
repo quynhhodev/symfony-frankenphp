@@ -1,0 +1,35 @@
+# Trần tài nguyên của cả namespace: một lỗi rò bộ nhớ hay HPA scale quá tay không kéo
+# sập cả cụm.
+#
+# Tính theo MỨC ĐỈNH, không theo lúc yên:
+#   frankenphp   9 pod  = HPA tối đa 5 + surge lúc rollout (25% của 5, làm tròn lên = 2)
+#                         + 2 pod đang tắt (preStop 5s, vẫn bị tính tới khi biến mất)
+#   worker       2 pod  = 1 + surge
+#   reloader     2 pod  = 1 + surge
+#   postgres, rabbitmq, migration Job: mỗi thứ 1
+#
+#   requests.cpu    = 9×100m + 2×100m + 2×10m + 250m + 100m + 100m      = 1570m  -> 2
+#   requests.memory = 9×128 + 2×128 + 2×512 + 256 + 256 + 128 (Mi)     = 3072Mi -> 4Gi
+#   limits.cpu      = 9×500m + 2×500m + 2×1 + 1 + 1 + 500m              = 10     -> 12
+#   limits.memory   = 9×512 + 2×512 + 2×512 + 1024 + 1024 + 512 (Mi)    = 9216Mi -> 12Gi
+#
+# Đổi requests/limits hay maxReplicas của HPA là phải tính lại bảng trên. Vượt trần
+# thì pod mới bị từ chối tạo, rollout kẹt: `kubectl describe quota -n frankenphp`.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: frankenphp
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "12"
+    limits.memory: 12Gi
+    pods: "20"
+    persistentvolumeclaims: "4"
+    requests.storage: 5Gi
+    services: "10"
+    # Vào app chỉ qua Traefik. Mở NodePort hay LoadBalancer riêng là đi vòng qua rate
+    # limit của Ingress.
+    services.nodeports: "0"
+    services.loadbalancers: "0"
