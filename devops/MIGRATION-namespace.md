@@ -1,7 +1,8 @@
 # Chuyển app từ namespace `default` sang `frankenphp`
 
 > Soạn 31/10/2026 cho cụm multipass (k8s v1.35.9, ArgoCD v3.5.1). Các bước kiểm chứng ở
-> mục "Đã kiểm trước" chạy trên chính cụm này; phần di chuyển (mục 2 trở đi) CHƯA chạy.
+> mục "Đã kiểm trước" chạy trên chính cụm này. Đã chạy thật ngày 31/10/2026: downtime
+> 2 phút 49 giây (bước 2.1 tới 4), restore khớp số dòng; bước 6 đã sửa theo lần chạy đó.
 
 ## Vì sao phải làm tay, không để ArgoCD tự sync
 
@@ -165,8 +166,16 @@ Chỉ làm khi mục 5 đúng hết. Bật prune: ArgoCD xoá các resource cũ 
 (Deployment, StatefulSet, Service, ConfigMap, Secret, Middleware, HPA, PDB, Reloader).
 **PVC cũ KHÔNG bị xoá**: ArgoCD không quản PVC, StatefulSet giữ PVC khi bị xoá.
 
+Bật `prune` thôi là CHƯA đủ (gặp thật lúc chạy 31/10/2026): auto-sync chỉ chạy lại khi có
+commit mới, mà commit của branch đã sync xong ở bước 4 với prune tắt. Phải kích thêm một
+lần sync có prune, qua trường `operation` (tương đương `argocd app sync --prune`):
+
 ```bash
 $K -n argocd patch application frankenphp --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true}}}}'
+REV=$($K -n argocd get application frankenphp -o jsonpath='{.status.sync.revision}')
+$K -n argocd patch application frankenphp --type merge -p "{\"operation\":{\"initiatedBy\":{\"username\":\"namespace-migration\"},
+  \"sync\":{\"revision\":\"$REV\",\"prune\":true,\"syncOptions\":[\"CreateNamespace=true\",\"ServerSideApply=true\"]}}}"
+$K -n argocd get application frankenphp -o jsonpath='{.status.operationState.phase}{"\n"}'   # Succeeded
 $K -n default get all,cm,secret,ingress,pvc              # chỉ còn svc/kubernetes, kube-root-ca.crt, reloader-meta-info, 2 PVC cũ
 $K -n argocd get application frankenphp -o jsonpath='{.status.sync.status}/{.status.health.status}{"\n"}'   # Synced/Healthy
 ```
