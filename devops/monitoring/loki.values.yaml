@@ -14,9 +14,13 @@ loki:
   storage:
     type: filesystem
   # Loki 3.x BẮT BUỘC khai schemaConfig; thiếu là pod crashloop.
+  #
+  # `from` phải là ngày ĐÃ QUA tính theo UTC. Lần đầu khai "2026-11-01" theo giờ Việt Nam
+  # (UTC+7) lúc UTC vẫn là 31/10: Loki crashloop "no schema config found for time ...".
+  # Đừng đổi ngày này về sau: schema mới thì thêm mục mới với `from` trong tương lai.
   schemaConfig:
     configs:
-      - from: "2026-11-01"
+      - from: "2026-10-01"
         store: tsdb
         object_store: filesystem
         schema: v13
