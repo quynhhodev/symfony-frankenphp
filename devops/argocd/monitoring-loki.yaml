@@ -1,0 +1,37 @@
+# Loki (log tập trung). File bootstrap, apply tay:
+#   kubectl --context multipass apply -n argocd -f devops/argocd/monitoring-loki.yaml
+# Xem devops/MONITORING.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-loki
+spec:
+  project: default
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 7.5.0
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/devops/monitoring/loki.values.yaml
+    - repoURL: https://github.com/quynhhodev/symfony-frankenphp.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  # Cùng lý do với argocd-application.yaml: API server nhồi field vào volumeClaimTemplates
+  # mà Git không khai được, StatefulSet đỏ OutOfSync vĩnh viễn. Field đó IMMUTABLE nên bỏ
+  # qua không mất khả năng phát hiện drift đáng kể.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

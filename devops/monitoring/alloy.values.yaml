@@ -1,0 +1,63 @@
+# Values cho chart grafana/alloy (phiên bản ghim trong devops/argocd/monitoring-alloy.yaml).
+# Alloy gom log của mọi pod gửi về Loki. Thay cho Promtail, vốn đã ngừng phát triển.
+#
+# Đọc log qua API của k8s (`loki.source.kubernetes`), KHÔNG mount /var/log/pods từ node:
+# không cần hostPath, không cần chạy trên mọi node, nên một Deployment là đủ. Đổi lại
+# Alloy cần quyền `get pods/log` (ClusterRole của chart có) và API server gánh việc stream
+# log, chấp nhận được với cụm 2 node.
+controller:
+  type: deployment
+  replicas: 1
+
+configReloader:
+  resources:
+    requests: {cpu: 5m, memory: 16Mi}
+    limits: {memory: 64Mi}
+
+alloy:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
+  configMap:
+    content: |
+      // Mọi pod trong cụm.
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Label gắn vào mỗi dòng log, để lọc trong Grafana, ví dụ:
+      //   {namespace="frankenphp", container="worker"} |= "error"
+      // Chỉ giữ 4 label. Mỗi tổ hợp label là một stream trong index của Loki; `pod` đổi
+      // tên ở mỗi lần deploy nên sinh stream mới, chấp nhận được ở cụm nhỏ, nhưng đừng
+      // thêm label có nhiều giá trị hơn nữa (IP, request id...).
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

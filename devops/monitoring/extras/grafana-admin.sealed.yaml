@@ -1,0 +1,18 @@
+# SINH BỞI kubeseal (lệnh trong devops/MONITORING.md), đừng sửa tay. Chỉ controller của
+# cụm multipass mở được, và chỉ thành Secret monitoring/grafana-admin.
+---
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: grafana-admin
+  namespace: monitoring
+spec:
+  encryptedData:
+    admin-password: AgBJMsJJIlxmLX2OCAvd2YRPBO6E5eNhNFJkzIGhMoBqIJdZVbOInU5w/jPtIS9Ht5ybJ1n4bja314KZfEvnAyiiq5QY8drJjODm/KUwObrmHmxEzi96iPSlZY54T1gYn8fOppWHDgNtO6IdcxBeM20u0c/FDTqDE5dFBXfYYZtQsC8wohqW2pwAoyR8YbtX0uK3y0f275BWfHD0rJKV6XIqiqVYvUbnxmFm0DDtNPshOf6CqC03XHalxnJH3AB/XFhuwQFh7/QRZ5ZRIXBHehIuPXB4GvuBY3zHb63CBkXHzxWi8pPtnVNtnbFRi26IYzG8Wh3pMH0Nle9dO+Sb3A1t0QtOO4/EzjkffvQXqOcE5KpQPARCs11RMvJq9bVskB+Dk7p5huoCjumNwXDMKsUV8//cLlIABIJcJTkV7ZoFH2YA7rquCy1mit2ayoi2CDQXHZtHEqlwjqiMghl9urETs4TRGBecFtrAX0pN754cFTLEsiuY+XKDuB4AkmCmX4OBOill89+oAsxAN/K85tfrgf0Ce76Qwy8lXfjIFi9fIoSqI/pOOZ+hcjlpHulwuXkIosLcmrS+PGBigAaVlrQGW4BzhN10RIXcSds061/ef64qch/8uRjRlYIx5N0HX/gn3SF34y/viNka4jD2auhm1gsJRHaAn1ei57AIaCDe4d6axb6BFIUsSlOVcaVQ25kqDzvNl6e2a9swldHsrzoT6gqEJKbE7bD5YqHnVBRx6vVMAMT7u4aZf+hsHbAlGWM=
+    admin-user: AgBun/Hb06Z5AxL7NQ0Wbz0M96ldP4e68py/4PGc7al0c7Ba3eLQNg2G/ya/MjNPMXfpSlbV+mZg6hGWJZDppaudRkWnAxW2VjC2UFBMrQv8ePVtRnucDixQev/xVKeQKE76+9RA55lBIXO4HwDApp3RUOJBQLM+1/Vv9/6QIjSIbTV5vcHdgCBvmwuSA8wS7NNFWc9bOszOxLu4c53oGClF5RR50hU8KAK4OPhHMFfsrZdGjiFObea0pb5yptqhihgTwGhSeT1irc2GFpSzsPNfAKFjBeWzbhxGuRtddDSS/PMVIFULNCCHmXe+jhnDTzIGitbnaMwTGokNOayYVm0SdlG8mExh8wSDg4bpSGlIpT/Vs5+mgtdgPnqSx7/5VzDqvan+++kJv++7Xv+Y8xWSjG/bCfrXFTNDx0n7IzXY1Q5Da+rGYNYxSZbMhdGbGe7O/f1IMNKPtAssf/iJ1HILLvzCdJ0MUtIqL+m1dH/QD8Q5//kLRvQiSxdjBLfx0RAbAEUKkvQ7wJAbcQv0rRYX3I5LByTxlVNPKNKi2YyD5jkamHeTmBqiHIty9TSFvwnjjGZxD+gineX04/2OVgLMo4BdrJZm/OpiobUzh/LJSpr5f14ErlaIfRRIc6Wa6d1M2sMyq3Bvg4Qwt/58dwXJKiPm4tDERJClfpQBDV05BtmNyc52AjP5dUlHLnDlwuPWHknKIw==
+  template:
+    metadata:
+      name: grafana-admin
+      namespace: monitoring
+    type: Opaque

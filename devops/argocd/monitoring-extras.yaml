@@ -1,0 +1,23 @@
+# Phần monitoring RIÊNG của dự án, không đến từ chart: Secret admin Grafana (niêm phong),
+# và về sau dashboard, luật cảnh báo. File bootstrap, apply tay:
+#   kubectl --context multipass apply -n argocd -f devops/argocd/monitoring-extras.yaml
+# Phải apply TRƯỚC monitoring-kube-prometheus-stack: Grafana chờ Secret `grafana-admin`.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-extras
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/quynhhodev/symfony-frankenphp.git
+    targetRevision: main
+    path: devops/monitoring/extras
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
