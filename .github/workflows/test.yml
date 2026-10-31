@@ -181,9 +181,11 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # CỔNG CHẶN: CRITICAL đã có bản vá. Lỗ hổng chưa có bản vá (--ignore-unfixed) không
-          # chặn, vì không PR nào sửa được: phải chờ Debian/upstream vá.
+          # CỔNG CHẶN: HIGH và CRITICAL đã có bản vá. Lỗ hổng chưa có bản vá (--ignore-unfixed)
+          # không chặn, vì không PR nào sửa được: phải chờ Debian/upstream vá.
           #
-          # HIGH chưa chặn: đo 01/11/2026 có 7 HIGH trong Symfony 7.3 (cache, http-foundation,
-          # yaml), nhánh 7.3 đã hết vá, phải lên 7.4. Nâng xong thì đổi thành HIGH,CRITICAL.
-          trivy --severity CRITICAL --ignore-unfixed --exit-code 1 --format table
+          # Siết từ CRITICAL lên HIGH sau khi nâng Symfony 7.3 -> 7.4 (01/11/2026): 7.3 hết vá,
+          # còn 7 HIGH (cache, http-foundation, yaml); 7.4 thì 0. Đỏ ở đây thường là: nâng
+          # bản vá của thư viện (`composer update <gói>`), hoặc base image mới hơn (`pull: true`
+          # đã lo phần base).
+          trivy --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --format table
