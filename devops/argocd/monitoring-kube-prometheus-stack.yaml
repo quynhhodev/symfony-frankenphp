@@ -1,0 +1,52 @@
+# Prometheus + Grafana + Alertmanager. File bootstrap như argocd-application.yaml, apply tay:
+#   kubectl --context multipass apply -n argocd -f devops/argocd/monitoring-kube-prometheus-stack.yaml
+# Thứ tự bootstrap và lý do: devops/MONITORING.md.
+#
+# Hai nguồn: chart lấy từ Helm repo (ghim phiên bản), values lấy từ git (`$values`). Nâng
+# chart = sửa targetRevision ở đây; đổi cấu hình = sửa file values; cả hai đều qua PR.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-kube-prometheus-stack
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.16.2
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/devops/monitoring/kube-prometheus-stack.values.yaml
+    - repoURL: https://github.com/quynhhodev/symfony-frankenphp.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  # Job của chart ghi caBundle vào webhook của operator sau mỗi lần cài; Git không biết giá
+  # trị đó, nên không bỏ qua là webhook đỏ OutOfSync vĩnh viễn, và mỗi lần sync ArgoCD lại
+  # xoá caBundle đi (RespectIgnoreDifferences chặn việc đó).
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[]?.clientConfig.caBundle"]
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions: [".webhooks[]?.clientConfig.caBundle"]
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      # CRD của prometheus-operator vượt giới hạn 256KB của annotation last-applied mà
+      # client-side apply cần; server-side apply không cần annotation đó.
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    # CHỈ Application này quản label của namespace `monitoring` (3 Application kia chỉ
+    # CreateNamespace), không thì chúng giành nhau. KHÔNG enforce Pod Security: node-exporter
+    # cần hostNetwork/hostPID/hostPath, vi phạm cả baseline. Chỉ cảnh báo để thấy pod nào lệch.
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/warn: baseline
+        pod-security.kubernetes.io/audit: baseline

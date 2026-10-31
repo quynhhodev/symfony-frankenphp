@@ -1,0 +1,29 @@
+# Alloy (gom log mọi pod gửi về Loki). File bootstrap, apply tay:
+#   kubectl --context multipass apply -n argocd -f devops/argocd/monitoring-alloy.yaml
+# Xem devops/MONITORING.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-alloy
+spec:
+  project: default
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: alloy
+      targetRevision: 1.15.0
+      helm:
+        releaseName: alloy
+        valueFiles:
+          - $values/devops/monitoring/alloy.values.yaml
+    - repoURL: https://github.com/quynhhodev/symfony-frankenphp.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

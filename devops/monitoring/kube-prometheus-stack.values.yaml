@@ -1,0 +1,109 @@
+# Values cho chart prometheus-community/kube-prometheus-stack (phiên bản ghim trong
+# devops/argocd/monitoring-kube-prometheus-stack.yaml). ArgoCD đọc file này từ git: sửa ở
+# đây rồi merge là ArgoCD tự áp, không `helm upgrade` tay.
+#
+# Cụm nhỏ (node worker 3 CPU, ~5.7Gi): mọi thành phần đều khai requests/limits, metrics
+# chỉ giữ 7 ngày.
+
+# --- Control plane của kubeadm: TẮT thu thập ---------------------------------------
+# controller-manager, scheduler, etcd chỉ mở metrics ở 127.0.0.1 (đã kiểm: --bind-address,
+# --listen-metrics-urls); kube-proxy cũng vậy. Để bật thì Prometheus không với tới được và
+# báo TargetDown vĩnh viễn. Tắt cả scrape LẪN nhóm luật tương ứng ở defaultRules, không thì
+# luật vẫn báo động vì thiếu metric.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+    windows: false
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # Chặn trên theo dung lượng, phòng khi 7 ngày nhiều hơn dự kiến: đầy PVC là
+    # Prometheus dừng ghi.
+    retentionSize: 4GB
+    # Mặc định Prometheus chỉ lấy ServiceMonitor có label `release: <tên release này>`.
+    # ServiceMonitor của Traefik nằm ở namespace khác, không có label đó, nên phải mở ra
+    # cho mọi ServiceMonitor/PodMonitor/PrometheusRule trong cụm.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    resources:
+      requests: {cpu: 100m, memory: 400Mi}
+      limits: {memory: 1Gi}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 128Mi}
+  # Chưa gửi cảnh báo đi đâu: xem trong Grafana (Alerting) hoặc UI Alertmanager. Cấu hình
+  # receiver (Telegram/Slack) sau, khi các luật đã chỉnh cho không spam.
+
+grafana:
+  # Tài khoản admin lấy từ Secret `grafana-admin` (SealedSecret trong
+  # devops/monitoring/extras). Không để chart tự sinh password vào Secret mà ArgoCD
+  # sẽ ghi đè ở mỗi lần sync.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  # Dashboard và datasource khai bằng code (provisioning), nên không cần ổ đĩa riêng.
+  persistence:
+    enabled: false
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.local
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 384Mi}
+  # Sidecar nạp dashboard/datasource từ ConfigMap (devops/monitoring/extras).
+  sidecar:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 128Mi}
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 128Mi}
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 64Mi}

@@ -1,0 +1,12 @@
+# Phần monitoring riêng của dự án (ArgoCD Application `monitoring-extras`). Dashboard và
+# luật cảnh báo cho app sẽ thêm vào đây.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+resources:
+  # Tài khoản admin Grafana (user `admin`). Đọc password từ cụm:
+  #   kubectl --context multipass -n monitoring get secret grafana-admin \
+  #     -o jsonpath='{.data.admin-password}' | base64 -d
+  - grafana-admin.sealed.yaml

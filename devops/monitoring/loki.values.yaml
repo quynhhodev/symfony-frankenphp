@@ -1,0 +1,68 @@
+# Values cho chart grafana/loki (phiên bản ghim trong devops/argocd/monitoring-loki.yaml).
+#
+# Mặc định của chart là cho cụm thật: chế độ SimpleScalable (read/write/backend mỗi loại 3
+# pod), memcached chunksCache xin 8Gi, resultsCache, canary, gateway, lưu trữ S3. Trên node
+# worker ~5.7Gi thì riêng mặc định đã không có chỗ chạy. Ở đây: MỘT tiến trình (SingleBinary),
+# lưu trên ổ local-path, giữ log 7 ngày, tắt mọi thứ phụ.
+deploymentMode: SingleBinary
+
+loki:
+  # Một tenant duy nhất, không cần header X-Scope-OrgID.
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  # Loki 3.x BẮT BUỘC khai schemaConfig; thiếu là pod crashloop.
+  schemaConfig:
+    configs:
+      - from: "2026-11-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    retention_period: 168h
+  # Retention chỉ thật sự xoá log khi compactor bật retention.
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 5Gi
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+
+# Tắt chế độ SimpleScalable.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Tắt các thành phần phụ.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+memcachedExporter:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+# Grafana và Alloy gọi thẳng Service `loki:3100`, không cần nginx gateway.
+gateway:
+  enabled: false
+# Sidecar nạp luật cảnh báo cho Loki ruler; luật cảnh báo đặt ở Prometheus nên không dùng.
+sidecar:
+  rules:
+    enabled: false
