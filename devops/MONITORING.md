@@ -47,8 +47,13 @@ helm --kube-context multipass upgrade traefik traefik/traefik --version 41.7.1 -
   --set metrics.prometheus.serviceMonitor.enabled=true
 ```
 
-Chỉ thêm Service `traefik-metrics` và ServiceMonitor; Deployment của Traefik không đổi nên
-không restart. Kiểm trước bằng cách so `helm get manifest` với `helm template` của lệnh trên.
+Thêm Service `traefik-metrics` và ServiceMonitor, và chart BỎ 3 annotation `prometheus.io/*`
+khỏi pod template (không cần nữa khi đã có ServiceMonitor), nên **Traefik rollout lại một
+lần**. Chạy 01/11/2026: 1/362 request lỗi đúng lúc pod Traefik cũ tắt (Traefik không có
+preStop, cùng kiểu lỗi đã sửa cho frankenphp bằng `preStop` sleep).
+
+Kiểm trước khi chạy: so `helm get manifest` với `helm template ... --api-versions
+monitoring.coreos.com/v1` (thiếu cờ này thì template báo chưa có CRD ServiceMonitor).
 
 ## Vào Grafana
 
@@ -73,6 +78,22 @@ print(json.dumps({"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
 Dán đầu ra vào `monitoring/extras/grafana-admin.sealed.yaml` (giữ khối comment đầu file).
 Grafana chỉ đọc password admin ở LẦN KHỞI TẠO ĐẦU: đổi sau đó phải đổi cả trong Grafana
 (`grafana cli admin reset-admin-password`) hoặc xoá pod khi chưa có dữ liệu cần giữ.
+
+## Metrics của app (qua Traefik)
+
+Prometheus ghi đè label `service` của Traefik bằng tên Service k8s (`traefik-metrics`) và
+chuyển giá trị gốc sang **`exported_service`**. Service của app:
+
+```
+sum(rate(traefik_service_requests_total{exported_service="frankenphp-frankenphp-80@kubernetes"}[5m])) by (code)
+```
+
+## Cảnh báo đang có sẵn
+
+Lúc cài xong (01/11/2026): 19 target UP, 0 DOWN. Đang firing: `Watchdog` (luôn firing, để
+biết đường cảnh báo còn sống) và `KubeCPUOvercommit` (warning: tổng CPU requests không còn
+vừa nếu mất một node; với cụm 2 node, một control plane, thì điều này luôn đúng). Cần chỉnh
+hoặc tắt luật này khi thêm luật riêng của app.
 
 ## Đọc log
 
