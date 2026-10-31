@@ -108,3 +108,82 @@ jobs:
 
       - name: Validate Doctrine schema
         run: docker compose -f compose.yml exec -T apache php bin/console doctrine:schema:validate
+
+  # Kiểm schema của YAML THẬT SỰ lên cụm (Kustomize render ra), không chỉ cú pháp Kustomize.
+  # Gõ sai trường (`minReplica:`) hay sai apiVersion thì `kubectl kustomize` vẫn qua, chỉ lỗi
+  # lúc ArgoCD sync, tức là sau merge. `-strict` bắt cả trường không tồn tại; resource thiếu
+  # schema thì báo lỗi chứ không bỏ qua.
+  manifests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: kubeconform mọi overlay
+        run: |
+          set -euo pipefail
+          # Schema CRD (SealedSecret, Middleware của Traefik) lấy từ CRDs-catalog, ghim commit
+          # để kết quả không đổi theo upstream. Phiên bản k8s khớp cụm multipass (v1.35.9).
+          CAT='https://raw.githubusercontent.com/datreeio/CRDs-catalog/3eb90d47aba8d61919d4419dd38301536e32a94b/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          mkdir -p /tmp/render
+          for o in devops/overlays/*/; do
+            kubectl kustomize "$o" > "/tmp/render/$(basename "$o").yaml"
+          done
+          docker run --rm -v /tmp/render:/w \
+            ghcr.io/yannh/kubeconform:v0.7.0@sha256:85dbef6b4b312b99133decc9c6fc9495e9fc5f92293d4ff3b7e1b30f5611823c \
+            -strict -summary -kubernetes-version 1.35.0 \
+            -schema-location default -schema-location "$CAT" /w
+
+  # Build ĐÚNG image prod như do-ci.yml (stage cuối của Dockerfile) ngay ở PR. Trước đây PR
+  # chỉ build stage dev (compose), nên lỗi riêng của stage prod (thiếu file, composer
+  # --no-dev hỏng, sai quyền) chỉ lộ ra sau merge, lúc main đã đỏ và không deploy được.
+  #
+  # Rồi quét lỗ hổng bằng Trivy: gói OS của base image và thư viện Composer
+  # (vendor/composer/installed.json). Không thêm `composer audit`: Trivy đã quét đúng phần đó.
+  image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Không push: chỉ do-ci.yml được đẩy image. Đọc cache gha mà do-ci.yml ghi, nên PR
+      # build lại phần dependency không đổi rất nhanh.
+      - name: Build image prod
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frankenphp/Dockerfile
+          push: false
+          load: true
+          tags: franken-php:ci
+          # Luôn kéo base image mới nhất: tag dunglas/frankenphp:1-php8.4 được upstream đẩy
+          # bản vá liên tục. Thử 01/11/2026: base cũ trong cache còn libbrotli1 dính CVE
+          # CRITICAL đã có bản vá, base mới thì sạch.
+          pull: true
+          cache-from: type=gha
+
+      - name: Trivy quét lỗ hổng
+        run: |
+          set -euo pipefail
+          trivy() {
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+              aquasec/trivy:0.67.2@sha256:e2b22eac59c02003d8749f5b8d9bd073b62e30fefaef5b7c8371204e0a4b0c08 \
+              image --quiet "$@" franken-php:ci
+          }
+
+          # Báo cáo, KHÔNG chặn: mọi HIGH/CRITICAL đã có bản vá, ghi ra trang tóm tắt của job.
+          {
+            echo '### Trivy: lỗ hổng HIGH/CRITICAL đã có bản vá'
+            echo '```'
+            trivy --severity HIGH,CRITICAL --ignore-unfixed --format table
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # CỔNG CHẶN: CRITICAL đã có bản vá. Lỗ hổng chưa có bản vá (--ignore-unfixed) không
+          # chặn, vì không PR nào sửa được: phải chờ Debian/upstream vá.
+          #
+          # HIGH chưa chặn: đo 01/11/2026 có 7 HIGH trong Symfony 7.3 (cache, http-foundation,
+          # yaml), nhánh 7.3 đã hết vá, phải lên 7.4. Nâng xong thì đổi thành HIGH,CRITICAL.
+          trivy --severity CRITICAL --ignore-unfixed --exit-code 1 --format table

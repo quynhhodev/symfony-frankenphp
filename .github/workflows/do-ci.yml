@@ -56,6 +56,10 @@ jobs:
           tags: |
             ${{ env.repository }}:${{ github.sha }}
             ${{ env.repository }}:latest
+          # Như job `image` của test.yml: kéo base image mới nhất để có bản vá bảo mật.
+          # Lưu ý: image đẩy lên là một lần build KHÁC với image job `image` vừa quét (cùng
+          # code, cùng base mới nhất, cách nhau vài phút), không phải chính image đó.
+          pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
