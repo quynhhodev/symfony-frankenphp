@@ -23,7 +23,7 @@ resources:
   - autoscaling/frankenphp-hpa.yaml
   - autoscaling/frankenphp-pdb.yaml
   - configmap/configmap.yaml
-  - configmap/rabbitmq-definitions.yaml
+  - configmap/rabbitmq-config.yaml
   - deployment/frankenphp-deployment.yaml
   - deployment/messenger-worker-deployment.yaml
   # Hook PostSync của ArgoCD: không nằm trong danh sách resource của Application, quên
@@ -38,10 +38,12 @@ resources:
   - policy/resourcequota.yaml
   - rbac/serviceaccount.yaml
   - reloader/reloader.yaml
-  - secret/secret.yaml
   - service/frankenphp/frankenphp-service.yaml
   - service/postgres/postgres-service.yaml
   - service/rabbitmq/rabbitmq-service.yaml
+# KHÔNG có Secret nào ở base. Workload tham chiếu `frankenphp-secret` và
+# `rabbitmq-definitions` theo tên; mỗi overlay tự mang bản niêm phong của cụm nó
+# (devops/scripts/seal-secrets.sh), vì khóa niêm phong là riêng từng cụm.
 
 # NƠI DUY NHẤT ghi tag image của app. Ba manifest (frankenphp, messenger-worker,
 # migration-job) chỉ khai `image: devho/franken-php` không tag; Kustomize gắn tag này

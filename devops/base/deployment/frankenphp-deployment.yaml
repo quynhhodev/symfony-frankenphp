@@ -73,9 +73,11 @@ spec:
               secretKeyRef:
                 name: frankenphp-secret
                 key: database_url
-          # Token thật không nằm trong Git (repo public) — nạp bằng `kubectl patch
-          # secret frankenphp-secret`. `optional: true` là bắt buộc: thiếu nó thì
-          # mọi pod đứng CreateContainerConfigError cho tới khi có ai patch tay.
+          # Token của bên thứ ba, tùy chọn. Muốn dùng thì niêm phong lại với
+          # FACEBOOK_ACCESS_TOKEN=... devops/scripts/seal-secrets.sh seal <overlay>.
+          # KHÔNG `kubectl patch` tay: controller Sealed Secrets ghi đè Secret và xóa
+          # mọi key không có trong bản niêm phong. `optional: true` để thiếu token thì
+          # app vẫn chạy.
           - name: FACEBOOK_ACCESS_TOKEN
             valueFrom:
               secretKeyRef:

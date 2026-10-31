@@ -7,7 +7,7 @@ on:
   # khi test xanh.
   workflow_call:
   # Push chỉ đụng devops/ thì do-ci.yml bỏ qua (paths-ignore), nên tự kích ở đây để
-  # guard password RabbitMQ vẫn chạy — đúng phần bù của filter bên đó. ArgoCD apply
+  # guard Secret niêm phong vẫn chạy — đúng phần bù của filter bên đó. ArgoCD apply
   # devops/ ngay khi có commit, nên với loại push này test chỉ báo lỗi, không chặn được.
   #
   # Push đụng cả devops/ lẫn code thì test chạy HAI lần (ở đây và qua do-ci.yml). Cố ý
@@ -26,29 +26,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Password RabbitMQ buộc phải trùng ở hai nơi: DSN trong secret.yaml và
-      # definitions.json trong ConfigMap. Không có gì trong k8s ép được ràng buộc đó,
-      # và lệch nhau thì triệu chứng là ACCESS_REFUSED — trông y như broker chết,
-      # tốn hàng giờ để lần ra. Chặn ngay ở PR rẻ hơn nhiều.
-      - name: RabbitMQ password khớp giữa secret và definitions
+      # Secret của cụm nằm trong git dưới dạng SealedSecret (devops/scripts/seal-secrets.sh),
+      # nên CI không đọc được password để so như trước. Thay vào đó:
+      # - script tự dựng mọi chỗ dùng chung một password; `check` chạy nó với giá trị giả
+      #   và kiểm DSN, database_url, definitions.json khớp nhau (lệch là ACCESS_REFUSED,
+      #   lỗi trông y như broker chết).
+      # - không một Secret chữ thường nào được lọt vào devops/ (repo public).
+      # - không ConfigMap nào chứa password (definitions.json đã chuyển sang Secret).
+      - name: Secret niêm phong, không password chữ thường
         run: |
           set -euo pipefail
-          dsn=$(grep -oP 'amqp://[^:]+:\K[^@]+' devops/base/secret/secret.yaml || true)
-          def=$(grep -oP '"password"\s*:\s*"\K[^"]+' devops/base/configmap/rabbitmq-definitions.yaml || true)
+          devops/scripts/seal-secrets.sh check
 
-          if [ -z "$dsn" ] || [ -z "$def" ]; then
-            echo "LỖI: không trích được password (dsn='$dsn' definitions='$def')." >&2
-            echo "File đã đổi cấu trúc — sửa guard này thay vì xoá nó." >&2
+          plain=$(grep -rlE '^kind:[[:space:]]*Secret[[:space:]]*$' devops --include='*.yaml' --include='*.yml' || true)
+          if [ -n "$plain" ]; then
+            echo "LỖI: Secret chữ thường trong repo public, dùng devops/scripts/seal-secrets.sh:" >&2
+            echo "$plain" >&2
             exit 1
           fi
 
-          if [ "$dsn" != "$def" ]; then
-            echo "LỖI: password lệch — DSN='$dsn' nhưng definitions.json='$def'." >&2
-            echo "RabbitMQ sẽ trả ACCESS_REFUSED và lỗi trông y như broker chết." >&2
-            exit 1
-          fi
-
-          echo "OK: password khớp ở cả hai nơi."
+          for o in devops/overlays/*/; do
+            if kubectl kustomize "$o" | awk '/^kind: ConfigMap$/{cm=1} /^---$/{cm=0} cm' | grep -qi 'password'; then
+              echo "LỖI: $o có ConfigMap chứa chữ \"password\"" >&2
+              exit 1
+            fi
+          done
+          echo "OK: không Secret chữ thường, không password trong ConfigMap."
 
       # Kustomize không tự quét thư mục: manifest quên khai trong base/kustomization.yaml
       # thì không ra cụm, và ArgoCD (`prune: true`) XOÁ resource đang chạy của nó. Không có

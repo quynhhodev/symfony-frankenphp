@@ -53,10 +53,12 @@ spec:
               mountPath: /var/lib/rabbitmq
             # subPath chứ KHÔNG mount cả thư mục: /etc/rabbitmq/conf.d đã chứa
             # 10-defaults.conf của image, mount đè thư mục là mất nó.
-            - name: definitions
+            - name: config
               mountPath: /etc/rabbitmq/conf.d/20-definitions.conf
               subPath: 20-definitions.conf
               readOnly: true
+            # Chứa password của user `quynh`, nên nằm trong Secret (sinh bởi
+            # devops/scripts/seal-secrets.sh), không còn ở ConfigMap.
             - name: definitions
               mountPath: /etc/rabbitmq/definitions.json
               subPath: definitions.json
@@ -95,9 +97,12 @@ spec:
               # khác đi là ArgoCD báo OutOfSync vĩnh viễn.
               cpu: "1"
       volumes:
-        - name: definitions
+        - name: config
           configMap:
-            name: rabbitmq-definitions
+            name: rabbitmq-config
+        - name: definitions
+          secret:
+            secretName: rabbitmq-definitions
   volumeClaimTemplates:
     - metadata:
         name: rabbitmq-storage
